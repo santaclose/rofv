@@ -12,6 +12,7 @@ struct v
 	v Cross(v other);
 	float Magnitude();
 	v Normalized();
+	void Normalize();
 
 	static const v f;
 	static const v u;

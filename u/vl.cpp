@@ -40,6 +40,14 @@ v v::Normalized()
 	return res;
 }
 
+void v::Normalize()
+{
+	float mag = Magnitude();
+	x /= mag;
+	y /= mag;
+	z /= mag;
+}
+
 const v v::f = v(0, 0, -1);
 const v v::u = v(0, 1, 0);
 const v v::r = v(1, 0, 0);

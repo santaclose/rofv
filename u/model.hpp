@@ -1,18 +1,17 @@
-#include "ml.h"
 #include <math.h>
 
-#define MODEL_SET
+//#define MODEL_SET
 #define PI 3.14159265358979323846264
 
 float radius = 2;
-float height = 2;
+float height = 5;
 int hResolution = 150;
 int vResolution = 60;
-int sides = 9;
+int sides = -5;
 
-using namespace ml;
 void generateModel()
 {
+	using namespace ml;
 	int realSides = sides + 1;
 	float currentRadius = radius;
 	float angleStep = 2 * PI / hResolution;
@@ -22,10 +21,10 @@ void generateModel()
 	float currentHeight = 0;
 
 	//int vertices[vResolution][hResolution];
-	int** vertices = (int**)alloca(sizeof(int*) * vResolution);
-	for (int i = 0; i < vResolution; i++) vertices[i] = (int*)alloca(sizeof(int) * hResolution);
+	unsigned int** vertices = (unsigned int**)alloca(sizeof(unsigned int*) * vResolution);
+	for (int i = 0; i < vResolution; i++) vertices[i] = (unsigned int*)alloca(sizeof(unsigned int) * hResolution);
 
-	int currentQuad[4];
+	unsigned int currentQuad[4];
 
 	for (int i = 0; i < vResolution; i++)
 	{

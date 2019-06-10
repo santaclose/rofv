@@ -5,9 +5,10 @@ private:
 	bool orbiting;
 
 public:
-	double theta;
-	double phi;
-	double distance;
+	float theta;
+	float phi;
+	float distance;
+	double fov;
 	//double scaleFactor;
 
 	void StartOrbiting();

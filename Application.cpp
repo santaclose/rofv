@@ -3,15 +3,24 @@
 #include <math.h>
 
 #include <iostream>
+#include <string>
+#include <sstream>
+#include <fstream>
+
+#include "libs/glm/glm.hpp"
+#include "libs/glm/gtc/matrix_transform.hpp"
 
 #include "libs/imgui/imgui.h"
 #include "libs/imgui/imgui_impl_glfw_gl3.h"
 
-#include "perspectiveGLFunction.inc"
-//#include "shaderDealer.inc"
+#include "shaderDealer.hpp"
 #include "Camera.h"
-#include "ParametersHandler.h"
+#include "u/ml.h"
 #include "u/model.hpp"
+#ifndef MODEL_SET
+	#include "defaultModel.hpp"
+#endif // !MODEL_SET
+
 
 #define VIEWPORT_WIDTH 1280
 #define VIEWPORT_HEIGHT 800
@@ -21,49 +30,38 @@
 #define VIEWPORT_UV_MSAA_COUNT 8
 #define BACKGROUND_COLOR 0.8
 
-//#define CAMERA_DISTANCE -5
+// OPENGL BUFFERS
+unsigned int modelVertexBuffer;
+unsigned int indexBuffer;
 
-bool recalculateLighting = false;
+// LIGHT
+glm::vec4 lightDirection = { 0.2, -0.3, -1.0, 0.0 };
+
+//////////////// TRANSFORMATIONS
+
+glm::mat4 projectionMatrix = glm::mat4();
+glm::mat4 viewMatrix = glm::mat4();
+glm::mat4 modelMatrix = glm::mat4();
+
+////////////////
+
+unsigned int shader;
 
 bool wireframeMode = false;
-bool cullBackFaces = false;
+bool useVertexNormals = true;
 bool saveUvsOption = true;
 
 int windowWidth = VIEWPORT_WIDTH, windowHeight = VIEWPORT_HEIGHT;
 double aspectRatio = (double)VIEWPORT_WIDTH / (double)VIEWPORT_HEIGHT;
 
-double lastPosition[2];
+double lastMousePosition[2];
 Camera camera;
-
-// lighting
-float light_diffuse[] = { 1.0, 1.0, 1.0, 1.0 };	/* White diffuse light. */
-float light_position[] = { -0.5, -0.5, -1, 0 };
-float ambient_light[] = { .8, .8, .8, 1 };
-
-
-/*inline void updateProjectionMatrix()
-{
-	glMatrixMode(GL_PROJECTION_MATRIX);
-	glLoadIdentity();
-	perspectiveGL(60.0, aspectRatio, 0.1, 100.0);
-	glMatrixMode(GL_MODELVIEW_MATRIX);
-}
-inline void updateModelviewMatrix()
-{
-	//glLoadIdentity();
-	// move forward
-	glTranslatef(0, 0, camera.distance);
-	// rotations
-	glRotated(camera.phi, 1, 0, 0);
-	glRotated(camera.theta, 0, 1, 0);
-}*/
 
 void WindowResizeCallback(GLFWwindow* window, int width, int height)
 {
 	glfwGetWindowSize(window, &windowWidth, &windowHeight);
 	glViewport(0, 0, windowWidth, windowHeight);
 	aspectRatio = (double)windowWidth / (double)windowHeight;
-	//updateProjectionMatrix();
 }
 
 void CharCallback(GLFWwindow* window, unsigned int c)
@@ -75,7 +73,6 @@ void CharCallback(GLFWwindow* window, unsigned int c)
 void MouseScroll(GLFWwindow* window, double xoffset, double yoffset)
 {
 	camera.OnMouseScroll(yoffset);
-	//updateModelviewMatrix();
 
 	//IMGUI
 	ImGui_ImplGlfw_ScrollCallback(window, xoffset, yoffset);
@@ -99,17 +96,16 @@ void MouseButtonPressed(GLFWwindow* window, int button, int action, int mods)
 
 void MouseMotion(GLFWwindow* window, double xpos, double ypos)
 {
-	double dx = xpos - lastPosition[0];
-	double dy = ypos - lastPosition[1];
+	double dx = xpos - lastMousePosition[0];
+	double dy = ypos - lastMousePosition[1];
 
 	if (!ImGui::IsAnyItemHovered() && !ImGui::IsMouseHoveringAnyWindow() && !ImGui::IsAnyItemActive())
 	{
 		camera.OnMouseMoved(dx, dy);
-		//updateModelviewMatrix();
 	}
 
-	lastPosition[0] = xpos;
-	lastPosition[1] = ypos;
+	lastMousePosition[0] = xpos;
+	lastMousePosition[1] = ypos;
 }
 
 void KeyPressed(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -135,26 +131,20 @@ void KeyPressed(GLFWwindow* window, int key, int scancode, int action, int mods)
 		}
 		wireframeMode = !wireframeMode;
 		break;
-	case GLFW_KEY_C:
+	case GLFW_KEY_N:
 		if (action == GLFW_RELEASE)
 			break;
-		if (cullBackFaces)
-			glDisable(GL_CULL_FACE);
+		if (useVertexNormals)
+			ml::setUseVertexNormals(false);
 		else
-			glEnable(GL_CULL_FACE);
-		cullBackFaces = !cullBackFaces;
+			ml::setUseVertexNormals(true);
+		useVertexNormals = !useVertexNormals;
 		break;
 	}
 
 	//IMGUI
 	ImGui_ImplGlfw_KeyCallback(window, key, scancode, action, mods);
 }
-
-
-void SaveModel()
-{
-}
-
 
 GLFWwindow* initViewport(const int resX, const int resY)
 {
@@ -180,20 +170,19 @@ GLFWwindow* initViewport(const int resX, const int resY)
 	return window;
 }
 
-inline void SetAllGLMatrices()
+inline void updateMvpMatrices()
 {
-	glMatrixMode(GL_PROJECTION_MATRIX);
+	projectionMatrix = glm::perspective(camera.fov, aspectRatio, 0.1, 100.0);
 
-		glLoadIdentity();
-		perspectiveGL(60.0, aspectRatio, 0.1, 100.0);
+	/*modelMatrix = glm::translate(glm::mat4(), glm::vec3(0, 0, camera.distance));
 
-	glMatrixMode(GL_MODELVIEW_MATRIX);
-	
-		// move forward
-		glTranslatef(0, 0, camera.distance);
-		// rotations
-		glRotated(camera.phi, 1, 0, 0);
-		glRotated(camera.theta, 0, 1, 0);
+	modelMatrix = glm::rotate(modelMatrix, camera.phi, glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, camera.theta, glm::vec3(0.0f, 1.0f, 0.0f));*/
+
+	viewMatrix = glm::translate(glm::mat4(), glm::vec3(0, 0, camera.distance));
+
+	modelMatrix = glm::rotate(glm::mat4(), camera.phi, glm::vec3(1.0f, 0.0f, 0.0f));
+	modelMatrix = glm::rotate(modelMatrix, camera.theta, glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 inline void viewportTick(GLFWwindow* window)
@@ -201,47 +190,36 @@ inline void viewportTick(GLFWwindow* window)
 	// Clear
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// Set Projection and ModelView matrices
-	SetAllGLMatrices();
+	// Set Projection, Model and View matrices
+	updateMvpMatrices();
+	
+	// Update light direction
+	glm::vec4 finalLightDirection = glm::inverse(modelMatrix) * lightDirection;
+
+	// send mvp matrices to the gpu
+	int uLoc = glGetUniformLocation(shader, "projectionMat");
+	glUniformMatrix4fv(uLoc, 1, GL_FALSE, &projectionMatrix[0][0]);
+	uLoc = glGetUniformLocation(shader, "viewMat");
+	glUniformMatrix4fv(uLoc, 1, GL_FALSE, &viewMatrix[0][0]);
+	uLoc = glGetUniformLocation(shader, "modelMat");
+	glUniformMatrix4fv(uLoc, 1, GL_FALSE, &modelMatrix[0][0]);
+
+	uLoc = glGetUniformLocation(shader, "lightDir");
+	glUniform3fv(uLoc, 1, &finalLightDirection.x);
+
+	uLoc = glGetUniformLocation(shader, "noLighting");
+	glUniform1i(uLoc, wireframeMode);
 
 	// Draw model
+
 #ifndef MODEL_SET
-
-	// default model
-	glBegin(GL_POLYGON);
-	glNormal3f(0.0, 0.0, -1.0);
-	glVertex3f(0.0, 0.0, 0.0);
-	glVertex3f(0.0, 1.0, 0.0);
-	glVertex3f(1.0, 1.0, 0.0);
-	glVertex3f(1.0, 0.0, 0.0);
-	glEnd();
-	glBegin(GL_POLYGON);
-	glNormal3f(1.0, 0.0, 0.0);
-	glVertex3f(0.0, 0.0, 0.0);
-	glVertex3f(0.0, 0.0, -1.0);
-	glVertex3f(0.0, 1.0, -1.0);
-	glVertex3f(0.0, 1.0, 0.0);
-	glEnd();
-	glBegin(GL_POLYGON);
-	glNormal3f(0.0, 0.0, 1.0);
-	glVertex3f(0.0, 0.0, 0.0);
-	glVertex3f(-1.0, 0.0, 0.0);
-	glVertex3f(-1.0, -1.0, 0.0);
-	glVertex3f(0.0, -1.0, 0.0);
-	glEnd();
-	glBegin(GL_POLYGON);
-	glNormal3f(-1.0, 0.0, 0.0);
-	glVertex3f(0.0, 0.0, 0.0);
-	glVertex3f(0.0, -1.0, 0.0);
-	glVertex3f(0.0, -1.0, 1.0);
-	glVertex3f(0.0, 0.0, 1.0);
-	glEnd();
+	defaultModel::generateDefaultModel();
 #else
-
 	generateModel();
-	clearModel();
+#endif
 
-#endif // !MODEL_SET
+	ml::drawModel();
+	ml::clearModel();
 	
 	// Check for any input, or window movement
 	glfwPollEvents();
@@ -254,25 +232,32 @@ inline void viewportTick(GLFWwindow* window)
 		ImGui::SetNextWindowSize(ImVec2(windowWidth * IMGUI_WINDOWS_WIDTH_RATIO, windowHeight));
 		ImGui::Begin("Options");
 
+		//ImGui::SliderFloat("TEST", &testValue, 0.1f, 2.0f);
+
 		if (ImGui::Button("Wireframe (Z)"))
 			KeyPressed(window, GLFW_KEY_Z, 0, GLFW_PRESS, 0);
-		if (ImGui::Button("Cull back faces (C)"))
-			KeyPressed(window, GLFW_KEY_C, 0, GLFW_PRESS, 0);
+		ImGui::Text((wireframeMode ? "Yes" : "No"));
 
-		/*ImGui::Checkbox("Recalculate lights", &recalculateLighting);
-		ImGui::SliderFloat("Light diffuse R:", &light_diffuse[0], 0.0f, 5.0f);
-		ImGui::SliderFloat("Light diffuse G:", &light_diffuse[1], 0.0f, 5.0f);
-		ImGui::SliderFloat("Light diffuse B:", &light_diffuse[2], 0.0f, 5.0f);
-		ImGui::SliderFloat("Light diffuse A:", &light_diffuse[3], 0.0f, 1.0f);
+		if (ImGui::Button("Use vertex normals approximation (N)"))
+			KeyPressed(window, GLFW_KEY_N, 0, GLFW_PRESS, 0);
+		ImGui::Text((useVertexNormals ? "Yes" : "No"));
 
-		ImGui::DragFloat("Light position X:", &light_position[0]);
-		ImGui::DragFloat("Light position Y:", &light_position[1]);
-		ImGui::DragFloat("Light position Z:", &light_position[2]);
-		ImGui::SliderFloat("Light position W:", &light_position[3], 0.0f, 1.0f);*/
+		ImGui::SliderFloat("light x", &lightDirection.x, -1.0, 1.0);
+		ImGui::SliderFloat("light y", &lightDirection.y, -1.0, 1.0);
+		ImGui::SliderFloat("light z", &lightDirection.z, -1.0, 1.0);
+
+
+		std::stringstream ss;
+		ss << "Vertex count: " << ml::getLastDrawVertexCount() << '\n';
+		ImGui::Text(ss.str().c_str());
 
 		ImGui::Checkbox("Save UVs", &saveUvsOption);
 		if (ImGui::Button("Save"))
-			SaveModel();
+			ml::setExporting();
+		
+#ifndef MODEL_SET
+		ImGui::Text("No model code detected");
+#endif
 
 		ImGui::End();
 
@@ -280,11 +265,11 @@ inline void viewportTick(GLFWwindow* window)
 		ImGui::SetNextWindowSize(ImVec2(windowWidth * IMGUI_WINDOWS_WIDTH_RATIO, windowHeight));
 		ImGui::Begin("Parameters");
 
-		ImGui::SliderFloat("radius", &radius, 0.1f, 5.0f);
+		/*ImGui::SliderFloat("radius", &radius, 0.1f, 5.0f);
 		ImGui::SliderFloat("height", &height, 1.0f, 8.0f);
 		ImGui::SliderInt("hResolution", &hResolution, 5, 300);
 		ImGui::SliderInt("vResolution", &vResolution, 5, 300);
-		ImGui::SliderInt("sides", &sides, -20, 20);
+		ImGui::SliderInt("sides", &sides, -20, 20);*/
 
 		ImGui::End();
 	}
@@ -292,7 +277,7 @@ inline void viewportTick(GLFWwindow* window)
 	ImGui::Render();
 	ImGui_ImplGlfwGL3_RenderDrawData(ImGui::GetDrawData());
 
-	// Update Screen
+	// Swap front and back buffers
 	glfwSwapBuffers(window);
 }
 
@@ -329,28 +314,37 @@ int main(int argc, char** argv)
 	std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
 	std::cout << "OpenGL version supported " << glGetString(GL_VERSION) << std::endl;
 
-	glEnable(GL_LIGHT0);
-	glEnable(GL_LIGHTING);
-
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
-	glLightfv(GL_LIGHT0, GL_POSITION, light_position);
-	glLightfv(GL_LIGHT0, GL_AMBIENT, ambient_light);
 	glClearColor(BACKGROUND_COLOR, BACKGROUND_COLOR, BACKGROUND_COLOR, 1);
+	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
-	glEnable(GL_DEPTH_TEST); // Depth Testing
-	//updateProjectionMatrix();
 
-	/*GLFWwindow* pWindow = initParameterWindow(200, 800);*/
-	if (/*pWindow != NULL && */window != NULL)
+	if (window != NULL)
 	{
+		glGenBuffers(1, &modelVertexBuffer);
+		glBindBuffer(GL_ARRAY_BUFFER, modelVertexBuffer);
+		//glBufferData(GL_ARRAY_BUFFER, defaultModelVertices.size() * sizeof(ml::vertexS), &defaultModelVertices[0], GL_STATIC_DRAW);
+
+		glEnableVertexAttribArray(0);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(ml::vertexS), 0);						// vertex positions
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(ml::vertexS), (void*)(sizeof(float)*3)); // vertex normals
+		// TODO vertex uvs
+
+		glGenBuffers(1, &indexBuffer);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+		//glBufferData(GL_ELEMENT_ARRAY_BUFFER, 12 * 3 * sizeof(unsigned int), defaultModelIndexBuffer, GL_STATIC_DRAW);
+
+		shader = CreateShader("shaders/diffuse.shader");
+		glUseProgram(shader);
+			   
 		while (!glfwWindowShouldClose(window)/* && !glfwWindowShouldClose(pWindow)*/)
 		{
 			viewportTick(window);
 			//viewportParameterTick(pWindow);
 		}
+		glDeleteProgram(shader);
+		glfwDestroyWindow(window);
 	}
-
-	glfwDestroyWindow(window);
 
 	ImGui_ImplGlfwGL3_Shutdown();
 	ImGui::DestroyContext();

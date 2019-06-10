@@ -2,26 +2,63 @@
 
 namespace ml
 {
-	/*struct vertexS
-	{
-		int id;
-		v pos;
-	};*/
-	struct faceS
-	{
-		std::vector<int> verts;
-		//v normal;
-	};
+	bool exporting = false;
+	bool e_fileOpen = false;
+	bool e_objectCreated = false;
+	std::ofstream e_output;
 
-	int vertexCounter = 0;
-	//std::map <int, v> vertices;
-	std::vector<v> vertices;
+	bool calculateVertexNormals = true;
+
+	unsigned int lastDrawVertexCount = 0;
+	unsigned int vertexCounter = 0;
+
+	std::vector<vertexS> flatDrawing; // duplicate vertices to create facets if not calculating vertex normals
+	std::vector<vertexS> vertices;
+	std::vector<unsigned int> indexList;
+
+	void setExporting()
+	{
+		exporting = true;
+	}
+
+	void setUseVertexNormals(bool useVertexNormals)
+	{
+		calculateVertexNormals = useVertexNormals;
+	}
+
+	int getLastDrawVertexCount()
+	{
+		return lastDrawVertexCount;
+	}
+
+	void drawModel()
+	{
+		if (calculateVertexNormals)
+		{
+			glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(ml::vertexS), &vertices[0], GL_DYNAMIC_DRAW);						// update vertices
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexList.size() * sizeof(unsigned int), &indexList[0], GL_DYNAMIC_DRAW);		// update indices to draw
+
+			glDrawElements(GL_TRIANGLES, indexList.size(), GL_UNSIGNED_INT, nullptr);
+		}
+		else
+		{
+			glBufferData(GL_ARRAY_BUFFER, flatDrawing.size() * sizeof(ml::vertexS), &flatDrawing[0], GL_DYNAMIC_DRAW);
+			glDrawArrays(GL_TRIANGLES, 0, flatDrawing.size());
+		}
+	}
 
 	void clearModel()
 	{
-		//vertices.clear();
+		lastDrawVertexCount = vertexCounter;
 		vertexCounter = 0;
-		//faces.clear();
+		indexList.clear();
+		flatDrawing.clear();
+
+		if (exporting)
+		{
+			e_output.close();
+			exporting = false;
+		}
 	}
 
 	inline v calcNormal(faceS& theFace)
@@ -29,68 +66,114 @@ namespace ml
 		//v a = theFace.verts[1].pos - theFace.verts[0].pos;
 		//v b = theFace.verts[2].pos - theFace.verts[1].pos;
 
-		return (vertices[theFace.verts[1]] - vertices[theFace.verts[0]]) *
-			(vertices[theFace.verts[2]] - vertices[theFace.verts[1]]);
+		return ((vertices[theFace.verts[1]].pos - vertices[theFace.verts[0]].pos) *
+			(vertices[theFace.verts[2]].pos - vertices[theFace.verts[1]].pos)).Normalized();
 		//theFace.normal = theFace.normal.Normalized();
 	}
 
-	void drawFace(faceS& theFace)
+	void generateFace(faceS& theFace) // adds the face to the buffer
 	{
-		glBegin(GL_POLYGON);
-		//glNormal3f(theFace.normal.x, theFace.normal.y, theFace.normal.z);
-		v n = calcNormal(theFace);
-		glNormal3f(n.x, n.y, n.z);
-		for (int h : theFace.verts)
+		v normal = calcNormal(theFace);
+
+		if (calculateVertexNormals)
 		{
-			glVertex3f(vertices[h].x, vertices[h].y, vertices[h].z);
+			for (unsigned int theVertex : theFace.verts) // update all vertex normals of the face
+			{
+				vertices[theVertex].normal += normal;
+				vertices[theVertex].normal.Normalize();
+			}
+			if (theFace.verts.size() == 3)
+			{
+				indexList.push_back(theFace.verts[0]);
+				indexList.push_back(theFace.verts[1]);
+				indexList.push_back(theFace.verts[2]);
+			}
+			else if (theFace.verts.size() == 4)
+			{
+				indexList.push_back(theFace.verts[0]);
+				indexList.push_back(theFace.verts[1]);
+				indexList.push_back(theFace.verts[2]);
+
+				indexList.push_back(theFace.verts[0]);
+				indexList.push_back(theFace.verts[2]);
+				indexList.push_back(theFace.verts[3]);
+			}
 		}
-		glEnd();
+		else
+		{
+			if (theFace.verts.size() == 3)
+			{
+				vertexS newVertex = vertices[theFace.verts[0]];
+				newVertex.normal = normal;
+				flatDrawing.push_back(newVertex);
+				newVertex = vertices[theFace.verts[1]];
+				newVertex.normal = normal;
+				flatDrawing.push_back(newVertex);
+				newVertex = vertices[theFace.verts[2]];
+				newVertex.normal = normal;
+				flatDrawing.push_back(newVertex);
+			}
+			else if (theFace.verts.size() == 4)
+			{
+				vertexS newVertex = vertices[theFace.verts[0]];
+				newVertex.normal = normal;
+				flatDrawing.push_back(newVertex);
+				newVertex = vertices[theFace.verts[1]];
+				newVertex.normal = normal;
+				flatDrawing.push_back(newVertex);
+				newVertex = vertices[theFace.verts[2]];
+				newVertex.normal = normal;
+				flatDrawing.push_back(newVertex);
+				newVertex = vertices[theFace.verts[0]];
+				newVertex.normal = normal;
+				flatDrawing.push_back(newVertex);
+				newVertex = vertices[theFace.verts[2]];
+				newVertex.normal = normal;
+				flatDrawing.push_back(newVertex);
+				newVertex = vertices[theFace.verts[3]];
+				newVertex.normal = normal;
+				flatDrawing.push_back(newVertex);
+			}
+		}
 	}
+
+#include "ml_e_dec.h"
 
 	int vertex(float x, float y, float z)
 	{
+		if (exporting)
+			return e_vertex(x, y, z);
+
 		if (vertices.size() <= vertexCounter)
-			vertices.push_back(v(x, y, z));
+			vertices.push_back(vertexS(x, y, z));
 		else
-			vertices[vertexCounter] = v(x, y, z);
+			vertices[vertexCounter] = vertexS(x, y, z);
 
 		vertexCounter++;
 		return vertexCounter - 1;
-		/*vertexS vtx;
-		vtx.id = vertexCounter;
-		vtx.pos.x = x;
-		vtx.pos.y = y;
-		vtx.pos.z = z;
-
-		mapping.insert(std::pair<int, vertexS>(vertexCounter, vtx));
-
-		vertexCounter++;
-		return vertexCounter - 1;*/
 	}
-
-	int vertex(v pos)
+	int vertex(v& pos)
 	{
+		if (exporting)
+			return e_vertex(pos);
+
 		if (vertices.size() <= vertexCounter)
-			vertices.push_back(pos);
+			vertices.push_back(vertexS(pos));
 		else
-			vertices[vertexCounter] = pos;
+			vertices[vertexCounter] = vertexS(pos);
 
 		vertexCounter++;
 		return vertexCounter - 1;
-		/*vertexS vtx;
-		vtx.id = vertexCounter;
-		vtx.pos.x = pos.x;
-		vtx.pos.y = pos.y;
-		vtx.pos.z = pos.z;
-
-		mapping.insert(std::pair<int, vertexS>(vertexCounter, vtx));
-
-		vertexCounter++;
-		return vertexCounter - 1;*/
 	}
-
-	void face(int* ids, int length)
+	
+	void face(unsigned int* ids, int length)
 	{
+		if (exporting)
+		{
+			e_face(ids, length);
+			return;
+		}
+
 		faceS fce;
 		for (int i = 0; i < length; i++)
 		{
@@ -98,10 +181,16 @@ namespace ml
 			fce.verts.push_back(ids[i]);
 		}
 		//calcNormal(fce);
-		drawFace(fce);
+		generateFace(fce);
 	}
-	void face(int* ids, int length, bool invert)
+	void face(unsigned int* ids, int length, bool invert)
 	{
+		if (exporting)
+		{
+			e_face(ids, length, invert);
+			return;
+		}
+
 		faceS fce;
 		if (invert)
 		{
@@ -111,7 +200,7 @@ namespace ml
 				fce.verts.push_back(ids[i]);
 			}
 			//calcNormal(fce);
-			drawFace(fce);
+			generateFace(fce);
 		}
 		else
 		{
@@ -121,11 +210,17 @@ namespace ml
 				fce.verts.push_back(ids[i]);
 			}
 			//calcNormal(fce);
-			drawFace(fce);
+			generateFace(fce);
 		}
 	}
-	void face(int* ids, int length, int start)
+	void face(unsigned int* ids, int length, int start)
 	{
+		if (exporting)
+		{
+			e_face(ids, length, start);
+			return;
+		}
+
 		faceS fce;
 		for (int i = 0; i < length; i++)
 		{
@@ -133,10 +228,16 @@ namespace ml
 			fce.verts.push_back(ids[i + start]);
 		}
 		//calcNormal(fce);
-		drawFace(fce);
+		generateFace(fce);
 	}
-	void face(int* ids, int length, int start, bool invert)
+	void face(unsigned int* ids, int length, int start, bool invert)
 	{
+		if (exporting)
+		{
+			e_face(ids, length, start, invert);
+			return;
+		}
+
 		faceS fce;
 		if (invert)
 		{
@@ -155,10 +256,16 @@ namespace ml
 			}
 		}
 		//calcNormal(fce);
-		drawFace(fce);
+		generateFace(fce);
 	}
-	void faceSeq(int* ids, int count, int vertsPerFace)
+	void faceSeq(unsigned int* ids, int count, int vertsPerFace)
 	{
+		if (exporting)
+		{
+			e_faceSeq(ids, count, vertsPerFace);
+			return;
+		}
+
 		int length = count / vertsPerFace;
 		faceS* fce = (faceS*)alloca(length * sizeof(faceS));
 
@@ -171,8 +278,162 @@ namespace ml
 			if ((i + 1) % vertsPerFace == 0)
 			{
 				//calcNormal(fce[curFce]);
-				drawFace(fce[curFce]);
+				generateFace(fce[curFce]);
 				curFce++;
+			}
+		}
+	}
+
+	// exporting functions
+	void e_checkObjectAndFile()
+	{
+		if (!e_fileOpen)
+		{
+			e_output.open("output.ofv");
+			e_fileOpen = true;
+		}
+		if (!e_objectCreated)
+		{
+			e_output << "o[object]\n";
+			e_objectCreated = true;
+		}
+	}
+
+	int e_vertex(float x, float y, float z)
+	{
+		e_checkObjectAndFile();
+		e_output << 'v' << vertexCounter << '[' << x << ',' << y << ',' << z << "]\n";
+		vertexCounter++;
+		return vertexCounter - 1;
+	}
+	int e_vertex(v& pos)
+	{
+		e_checkObjectAndFile();
+		e_output << 'v' << vertexCounter << '[' << pos.x << ',' << pos.y << ',' << pos.z << "]\n";
+		vertexCounter++;
+		return vertexCounter - 1;
+	}
+
+	void e_face(unsigned int* ids, int length)
+	{
+		e_output << "f[";
+		for (int i = 0; i < length; i++)
+		{
+			e_output << 'v' << ids[i];
+			if (i == length - 1)
+			{
+				e_output << "]\n";
+			}
+			else
+			{
+				e_output << ',';
+			}
+		}
+	}
+	void e_face(unsigned int* ids, int length, bool invert)
+	{
+		e_output << "f[";
+		if (invert)
+		{
+			for (int i = length - 1; i > -1; i--)
+			{
+				e_output << 'v' << ids[i];
+				if (i == 0)
+				{
+					e_output << "]\n";
+				}
+				else
+				{
+					e_output << ',';
+				}
+			}
+		}
+		else
+		{
+			for (int i = 0; i < length; i++)
+			{
+				e_output << 'v' << ids[i];
+				if (i == length - 1)
+				{
+					e_output << "]\n";
+				}
+				else
+				{
+					e_output << ',';
+				}
+			}
+		}
+	}
+	void e_face(unsigned int* ids, int length, int start)
+	{
+		e_output << "f[";
+		for (int i = 0; i < length; i++)
+		{
+			e_output << 'v' << ids[i + start];
+			if (i == length - 1)
+			{
+				e_output << "]\n";
+			}
+			else
+			{
+				e_output << ',';
+			}
+		}
+	}
+	void e_face(unsigned int* ids, int length, int start, bool invert)
+	{
+		e_output << "f[";
+		if (invert)
+		{
+			for (int i = length - 1; i > -1; i--)
+			{
+				e_output << 'v' << ids[i + start];
+				if (i == 0)
+				{
+					e_output << "]\n";
+				}
+				else
+				{
+					e_output << ',';
+				}
+			}
+		}
+		else
+		{
+			for (int i = 0; i < length; i++)
+			{
+				e_output << 'v' << ids[i + start];
+				if (i == length - 1)
+				{
+					e_output << "]\n";
+				}
+				else
+				{
+					e_output << ',';
+				}
+			}
+		}
+	}
+	void e_faceSeq(unsigned int* ids, int count, int vertsPerFace)
+	{
+		e_output << "f[";
+		for (int i = 0; i < count; i++)
+		{
+			e_output << 'v' << ids[i];
+			if ((i + 1) % vertsPerFace == 0)
+			{
+				if (i == count - 1)
+				{
+					e_output << "]\n";
+				}
+				else
+				{
+					e_output << "]\nf[";
+				}
+			}
+			else
+			{
+				e_output << ',';
 			}
 		}
 	}
