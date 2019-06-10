@@ -10,22 +10,54 @@ namespace ml
 	bool calculateVertexNormals = true;
 
 	unsigned int lastDrawVertexCount = 0;
+
 	unsigned int vertexCounter = 0;
+	unsigned int flatDrawingCounter = 0;
+	unsigned int indexCounter = 0;
 
 	std::vector<vertexS> flatDrawing; // duplicate vertices to create facets if not calculating vertex normals
 	std::vector<vertexS> vertices;
 	std::vector<unsigned int> indexList;
 
+	inline void addIndex(unsigned int newIndex)
+	{
+		if (indexList.size() <= indexCounter)
+			indexList.push_back(newIndex);
+		else
+			indexList[indexCounter] = newIndex;
+		indexCounter++;
+	}
+	inline void addVertexToFlatDrawing(vertexS& newVertex)
+	{
+		if (flatDrawing.size() <= flatDrawingCounter)
+			flatDrawing.push_back(newVertex);
+		else
+			flatDrawing[flatDrawingCounter] = newVertex;
+		flatDrawingCounter++;
+	}
+	inline void addVertexToVertices(vertexS& newVertex)
+	{
+		if (vertices.size() <= vertexCounter)
+			vertices.push_back(newVertex);
+		else
+			vertices[vertexCounter] = newVertex;
+		vertexCounter++;
+	}
+
+	void destroyEverything()
+	{
+		flatDrawing.clear();
+		indexList.clear();
+		vertices.clear();
+	}
 	void setExporting()
 	{
 		exporting = true;
 	}
-
 	void setUseVertexNormals(bool useVertexNormals)
 	{
 		calculateVertexNormals = useVertexNormals;
 	}
-
 	int getLastDrawVertexCount()
 	{
 		return lastDrawVertexCount;
@@ -38,21 +70,20 @@ namespace ml
 			glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(ml::vertexS), &vertices[0], GL_DYNAMIC_DRAW);						// update vertices
 			glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexList.size() * sizeof(unsigned int), &indexList[0], GL_DYNAMIC_DRAW);		// update indices to draw
 
-			glDrawElements(GL_TRIANGLES, indexList.size(), GL_UNSIGNED_INT, nullptr);
+			glDrawElements(GL_TRIANGLES, /*indexList.size()*/indexCounter, GL_UNSIGNED_INT, nullptr);
 		}
 		else
 		{
 			glBufferData(GL_ARRAY_BUFFER, flatDrawing.size() * sizeof(ml::vertexS), &flatDrawing[0], GL_DYNAMIC_DRAW);
-			glDrawArrays(GL_TRIANGLES, 0, flatDrawing.size());
+			glDrawArrays(GL_TRIANGLES, 0, /*flatDrawing.size()*/flatDrawingCounter);
 		}
 	}
-
 	void clearModel()
 	{
 		lastDrawVertexCount = vertexCounter;
 		vertexCounter = 0;
-		indexList.clear();
-		flatDrawing.clear();
+		indexCounter = 0;
+		flatDrawingCounter = 0;
 
 		if (exporting)
 		{
@@ -63,12 +94,8 @@ namespace ml
 
 	inline v calcNormal(faceS& theFace)
 	{
-		//v a = theFace.verts[1].pos - theFace.verts[0].pos;
-		//v b = theFace.verts[2].pos - theFace.verts[1].pos;
-
 		return ((vertices[theFace.verts[1]].pos - vertices[theFace.verts[0]].pos) *
 			(vertices[theFace.verts[2]].pos - vertices[theFace.verts[1]].pos)).Normalized();
-		//theFace.normal = theFace.normal.Normalized();
 	}
 
 	void generateFace(faceS& theFace) // adds the face to the buffer
@@ -80,59 +107,29 @@ namespace ml
 			for (unsigned int theVertex : theFace.verts) // update all vertex normals of the face
 			{
 				vertices[theVertex].normal += normal;
-				vertices[theVertex].normal.Normalize();
+				//vertices[theVertex].normal.Normalize();
 			}
-			if (theFace.verts.size() == 3)
+			for (int i = 2; i < theFace.verts.size(); i++) // triangulate
 			{
-				indexList.push_back(theFace.verts[0]);
-				indexList.push_back(theFace.verts[1]);
-				indexList.push_back(theFace.verts[2]);
-			}
-			else if (theFace.verts.size() == 4)
-			{
-				indexList.push_back(theFace.verts[0]);
-				indexList.push_back(theFace.verts[1]);
-				indexList.push_back(theFace.verts[2]);
-
-				indexList.push_back(theFace.verts[0]);
-				indexList.push_back(theFace.verts[2]);
-				indexList.push_back(theFace.verts[3]);
+				addIndex(theFace.verts[0]);
+				addIndex(theFace.verts[i-1]);
+				addIndex(theFace.verts[i]);
 			}
 		}
 		else
 		{
-			if (theFace.verts.size() == 3)
+			vertexS newVertex(::v::zero);
+			for (int i = 2; i < theFace.verts.size(); i++) // triangulate
 			{
-				vertexS newVertex = vertices[theFace.verts[0]];
-				newVertex.normal = normal;
-				flatDrawing.push_back(newVertex);
-				newVertex = vertices[theFace.verts[1]];
-				newVertex.normal = normal;
-				flatDrawing.push_back(newVertex);
-				newVertex = vertices[theFace.verts[2]];
-				newVertex.normal = normal;
-				flatDrawing.push_back(newVertex);
-			}
-			else if (theFace.verts.size() == 4)
-			{
-				vertexS newVertex = vertices[theFace.verts[0]];
-				newVertex.normal = normal;
-				flatDrawing.push_back(newVertex);
-				newVertex = vertices[theFace.verts[1]];
-				newVertex.normal = normal;
-				flatDrawing.push_back(newVertex);
-				newVertex = vertices[theFace.verts[2]];
-				newVertex.normal = normal;
-				flatDrawing.push_back(newVertex);
 				newVertex = vertices[theFace.verts[0]];
+				newVertex.normal = normal;				// set vertex normals equal to face normals
+				addVertexToFlatDrawing(newVertex);
+				newVertex = vertices[theFace.verts[i-1]];
 				newVertex.normal = normal;
-				flatDrawing.push_back(newVertex);
-				newVertex = vertices[theFace.verts[2]];
+				addVertexToFlatDrawing(newVertex);
+				newVertex = vertices[theFace.verts[i]];
 				newVertex.normal = normal;
-				flatDrawing.push_back(newVertex);
-				newVertex = vertices[theFace.verts[3]];
-				newVertex.normal = normal;
-				flatDrawing.push_back(newVertex);
+				addVertexToFlatDrawing(newVertex);
 			}
 		}
 	}
@@ -144,25 +141,26 @@ namespace ml
 		if (exporting)
 			return e_vertex(x, y, z);
 
-		if (vertices.size() <= vertexCounter)
-			vertices.push_back(vertexS(x, y, z));
-		else
-			vertices[vertexCounter] = vertexS(x, y, z);
-
-		vertexCounter++;
+		vertexS newVertex = vertexS(x, y, z);
+		addVertexToVertices(newVertex);
 		return vertexCounter - 1;
 	}
-	int vertex(v& pos)
+	int vertex(::v& pos)
 	{
 		if (exporting)
 			return e_vertex(pos);
 
-		if (vertices.size() <= vertexCounter)
-			vertices.push_back(vertexS(pos));
-		else
-			vertices[vertexCounter] = vertexS(pos);
+		vertexS newVertex = vertexS(pos);
+		addVertexToVertices(newVertex);
+		return vertexCounter - 1;
+	}
+	int vertex(::v pos)
+	{
+		if (exporting)
+			return e_vertex(pos);
 
-		vertexCounter++;
+		vertexS newVertex = vertexS(pos);
+		addVertexToVertices(newVertex);
 		return vertexCounter - 1;
 	}
 	
@@ -177,10 +175,8 @@ namespace ml
 		faceS fce;
 		for (int i = 0; i < length; i++)
 		{
-			//fce.verts.push_back(mapping[ids[i]]);
 			fce.verts.push_back(ids[i]);
 		}
-		//calcNormal(fce);
 		generateFace(fce);
 	}
 	void face(unsigned int* ids, int length, bool invert)
@@ -196,20 +192,16 @@ namespace ml
 		{
 			for (int i = length - 1; i > -1; i--)
 			{
-				//fce.verts.push_back(mapping[ids[i]]);
 				fce.verts.push_back(ids[i]);
 			}
-			//calcNormal(fce);
 			generateFace(fce);
 		}
 		else
 		{
 			for (int i = 0; i < length; i++)
 			{
-				//fce.verts.push_back(mapping[ids[i]]);
 				fce.verts.push_back(ids[i]);
 			}
-			//calcNormal(fce);
 			generateFace(fce);
 		}
 	}
@@ -224,10 +216,8 @@ namespace ml
 		faceS fce;
 		for (int i = 0; i < length; i++)
 		{
-			//fce.verts.push_back(mapping[ids[i + start]]);
 			fce.verts.push_back(ids[i + start]);
 		}
-		//calcNormal(fce);
 		generateFace(fce);
 	}
 	void face(unsigned int* ids, int length, int start, bool invert)
@@ -243,7 +233,6 @@ namespace ml
 		{
 			for (int i = length - 1; i > -1; i--)
 			{
-				//fce.verts.push_back(mapping[ids[i + start]]);
 				fce.verts.push_back(ids[i + start]);
 			}
 		}
@@ -251,11 +240,9 @@ namespace ml
 		{
 			for (int i = 0; i < length; i++)
 			{
-				//fce.verts.push_back(mapping[ids[i + start]]);
 				fce.verts.push_back(ids[i + start]);
 			}
 		}
-		//calcNormal(fce);
 		generateFace(fce);
 	}
 	void faceSeq(unsigned int* ids, int count, int vertsPerFace)
@@ -273,11 +260,9 @@ namespace ml
 
 		for (int i = 0; i < count; i++)
 		{
-			//fce[curFce].verts.push_back(mapping[ids[i]]);
 			fce[curFce].verts.push_back(ids[i]);
 			if ((i + 1) % vertsPerFace == 0)
 			{
-				//calcNormal(fce[curFce]);
 				generateFace(fce[curFce]);
 				curFce++;
 			}

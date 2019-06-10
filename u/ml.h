@@ -27,6 +27,7 @@ namespace ml
 		v normal;
 	};
 
+	void destroyEverything();
 	void setExporting();
 	void setUseVertexNormals(bool useVertexNormals);
 	int getLastDrawVertexCount();
@@ -34,9 +35,10 @@ namespace ml
 	void drawModel();
 	void clearModel();
 	void generateFace(faceS& theFace);
-	inline v calcNormal(faceS& theFace);
+	inline ::v calcNormal(faceS& theFace);
 	int vertex(float x, float y, float z);
-	int vertex(v pos);
+	int vertex(::v& pos);
+	int vertex(::v pos);
 	void face(unsigned int* ids, int length);
 	void face(unsigned int* ids, int length, bool invert);
 	void face(unsigned int* ids, int length, int start);

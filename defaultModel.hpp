@@ -8,7 +8,20 @@ namespace defaultModel
 	int vResolution = 60;
 	int sides = 9;
 
-	void generateDefaultModel()
+	void bindings()
+	{
+		if (::ImGui::SliderFloat("Radius", &radius, 0.1f, 5.0f))
+			::haveToGenerateModel = true;
+		if (::ImGui::SliderFloat("Height", &height, 0.1f, 5.0f))
+			::haveToGenerateModel = true;
+		if(::ImGui::SliderInt("Sides", &sides, -30, 30))
+			::haveToGenerateModel = true;
+		if(::ImGui::SliderInt("H Resolution", &hResolution, 3, 300))
+			::haveToGenerateModel = true;
+		if(::ImGui::SliderInt("V Resolution", &vResolution, 3, 300))
+			::haveToGenerateModel = true;
+	}
+	void generateModel()
 	{
 		using namespace ml;
 		int realSides = sides + 1;

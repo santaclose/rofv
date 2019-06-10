@@ -16,6 +16,7 @@
 #include "shaderDealer.hpp"
 #include "Camera.h"
 #include "u/ml.h"
+bool haveToGenerateModel = true;
 #include "u/model.hpp"
 #ifndef MODEL_SET
 	#include "defaultModel.hpp"
@@ -43,13 +44,15 @@ glm::mat4 projectionMatrix = glm::mat4();
 glm::mat4 viewMatrix = glm::mat4();
 glm::mat4 modelMatrix = glm::mat4();
 
-////////////////
-
 unsigned int shader;
+
+//////////////// OPTIONS
 
 bool wireframeMode = false;
 bool useVertexNormals = true;
 bool saveUvsOption = true;
+
+//////////////// RENDERING
 
 int windowWidth = VIEWPORT_WIDTH, windowHeight = VIEWPORT_HEIGHT;
 double aspectRatio = (double)VIEWPORT_WIDTH / (double)VIEWPORT_HEIGHT;
@@ -139,6 +142,7 @@ void KeyPressed(GLFWwindow* window, int key, int scancode, int action, int mods)
 		else
 			ml::setUseVertexNormals(true);
 		useVertexNormals = !useVertexNormals;
+		haveToGenerateModel = true;
 		break;
 	}
 
@@ -212,14 +216,18 @@ inline void viewportTick(GLFWwindow* window)
 
 	// Draw model
 
+	if (haveToGenerateModel)
+	{
+		ml::clearModel();
 #ifndef MODEL_SET
-	defaultModel::generateDefaultModel();
+		defaultModel::generateModel();
 #else
-	generateModel();
+		generateModel();
 #endif
+		haveToGenerateModel = false;
+	}
 
 	ml::drawModel();
-	ml::clearModel();
 	
 	// Check for any input, or window movement
 	glfwPollEvents();
@@ -238,7 +246,7 @@ inline void viewportTick(GLFWwindow* window)
 			KeyPressed(window, GLFW_KEY_Z, 0, GLFW_PRESS, 0);
 		ImGui::Text((wireframeMode ? "Yes" : "No"));
 
-		if (ImGui::Button("Use vertex normals approximation (N)"))
+		if (ImGui::Button("Use vertex normals (N)"))
 			KeyPressed(window, GLFW_KEY_N, 0, GLFW_PRESS, 0);
 		ImGui::Text((useVertexNormals ? "Yes" : "No"));
 
@@ -265,11 +273,13 @@ inline void viewportTick(GLFWwindow* window)
 		ImGui::SetNextWindowSize(ImVec2(windowWidth * IMGUI_WINDOWS_WIDTH_RATIO, windowHeight));
 		ImGui::Begin("Parameters");
 
-		/*ImGui::SliderFloat("radius", &radius, 0.1f, 5.0f);
-		ImGui::SliderFloat("height", &height, 1.0f, 8.0f);
-		ImGui::SliderInt("hResolution", &hResolution, 5, 300);
-		ImGui::SliderInt("vResolution", &vResolution, 5, 300);
-		ImGui::SliderInt("sides", &sides, -20, 20);*/
+#ifdef MODEL_SET
+#ifdef BINDINGS
+		bindings();
+#endif // BINDINGS
+#else // MODEL_SET
+		defaultModel::bindings();
+#endif // MODEL_SET
 
 		ImGui::End();
 	}
@@ -346,6 +356,7 @@ int main(int argc, char** argv)
 		glfwDestroyWindow(window);
 	}
 
+	ml::destroyEverything();
 	ImGui_ImplGlfwGL3_Shutdown();
 	ImGui::DestroyContext();
 
