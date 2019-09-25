@@ -1,6 +1,7 @@
 # rofv
 
-Code 3d models.
+Framework for coding parametric 3D models. Built on OpenGL using GLFW and ImGui.
 
-![alt text](https://raw.githubusercontent.com/santaclose/rofv/master/pictures/0.png)
-![alt text](https://raw.githubusercontent.com/santaclose/rofv/master/pictures/1.png)
+![](https://raw.githubusercontent.com/santaclose/rofv/master/showcase/0.png)
+![](https://raw.githubusercontent.com/santaclose/rofv/master/showcase/1.png)
+![](https://raw.githubusercontent.com/santaclose/rofv/master/showcase/2.png)
