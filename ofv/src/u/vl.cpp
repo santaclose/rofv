@@ -12,7 +12,7 @@ vec::vec(const float x, const float y, const float z)
 	this->y = y;
 	this->z = z;
 }
-vec vec::Cross(const vec other)
+vec vec::Cross(const vec& other)
 {
 	// i j k
 	// x y z
@@ -26,11 +26,15 @@ vec vec::Cross(const vec other)
 	res.z = x * other.y - y * other.x;
 	return res;
 }
-float vec::Magnitude()
+float vec::Dot(const vec& other)
+{
+	return x * other.x + y * other.y + z * other.z;
+}
+float vec::Magnitude() const
 {
 	return sqrt(x * x + y * y + z * z);
 }
-vec vec::Normalized()
+vec vec::Normalized() const
 {
 	vec res;
 	float mag = Magnitude();

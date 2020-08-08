@@ -9,9 +9,10 @@ struct vec
 
 	vec();
 	vec(float x, float y, float z);
-	vec Cross(vec other);
-	float Magnitude();
-	vec Normalized();
+	vec Cross(const vec& other);
+	float Dot(const vec& other);
+	float Magnitude() const;
+	vec Normalized() const;
 	void Normalize();
 
 	static const vec forward;

@@ -47,7 +47,7 @@ void main()
 {
 	//vec3 lightDir = normalize(lightPos - fragPos);
 
-	if (noLighting == 1)
+	if (noLighting != 0)
 	{
 		color = vec4(0.2, 0.2, 0.2, 1.0);
 	}

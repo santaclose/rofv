@@ -39,9 +39,9 @@ namespace ml
 	void generateFace(faceS& theFace);
 	inline ::vec calcNormal(faceS& theFace);
 	unsigned int vertex(float x, float y, float z, float u = 0.0f, float v = 0.0f);
-	unsigned int vertex(::vec& pos, float u = 0.0f, float v = 0.0f);
+	unsigned int vertex(const ::vec& pos, float u = 0.0f, float v = 0.0f);
 	//unsigned int vertexCp(::v pos, float u = 0.0f, float v = 0.0f);
-	unsigned int vertex(::vec&& pos, float u = 0.0f, float v = 0.0f);
+	//unsigned int vertex(::vec&& pos, float u = 0.0f, float v = 0.0f);
 	void face(unsigned int* ids, int length);
 	void face(unsigned int* ids, int length, bool invert);
 	void face(unsigned int* ids, int length, int start);

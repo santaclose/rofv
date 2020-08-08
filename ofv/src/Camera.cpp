@@ -3,7 +3,7 @@
 #define PHI_MAX 1.5708
 #define PHI_MIN -1.5708
 
-#define MIN_DISTANCE -20.0
+#define MIN_DISTANCE -100.0
 #define MAX_DISTANCE -1.5
 
 #define MOUSE_SCROLL_SENSITIVITY 0.6
@@ -50,7 +50,7 @@ void Camera::OnMouseScroll(double value)
 
 void Camera::UpdateTransformationMatrices(double aspectRatio)
 {
-	projectionMatrix = glm::perspective(fov, aspectRatio, 0.1, 100.0);
+	projectionMatrix = glm::perspective(fov, aspectRatio, 0.1, 1000.0);
 
 	viewMatrix = glm::translate(glm::mat4(), glm::vec3(0, 0, distance));
 

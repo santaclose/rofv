@@ -23,8 +23,11 @@
 bool haveToGenerateModel = true;
 
 //#include "u/models/ripple.hpp"
-#include "u/models/spiralStairs.hpp"
+//#include "u/models/spiralStairs.hpp"
+#include "u/models/maze.hpp"
 //#include "u/models/uShapedStairs.hpp"
+//#include "u/models/randomPointCube.hpp"
+//#include "u/models/lineFractal.hpp"
 #ifndef MODEL_SET
 	#include "defaultModel.hpp"
 #endif // !MODEL_SET
@@ -44,7 +47,7 @@ unsigned int indexBuffer;
 
 //////////////// OPTIONS
 
-bool wireframeMode = false;
+int renderingMode = 0;
 bool useVertexNormals = true;
 bool useTexture = false;
 bool saveUvsOption = true;
@@ -119,17 +122,26 @@ void KeyPressed(GLFWwindow* window, int key, int scancode, int action, int mods)
 	case GLFW_KEY_Z:
 		if (action == GLFW_RELEASE)
 			break;
-		if (wireframeMode)
+
+		renderingMode++;
+		if (renderingMode == 3)
+			renderingMode = 0;
+
+		if (renderingMode == 0)
 		{
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 			glEnable(GL_LIGHT0);
 		}
-		else
+		else if (renderingMode == 1)
 		{
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 			glDisable(GL_LIGHT0);
 		}
-		wireframeMode = !wireframeMode;
+		else if (renderingMode == 2)
+		{
+			glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+			glDisable(GL_LIGHT0);
+		}
 		break;
 	case GLFW_KEY_S:
 		if (action == GLFW_RELEASE)
@@ -192,7 +204,7 @@ inline void viewportTick(GLFWwindow* window)
 	diffuseShader->SetUniformMatrix4fv("viewMat", &camera.viewMatrix[0][0]);
 	diffuseShader->SetUniformMatrix4fv("modelMat", &camera.modelMatrix[0][0]);
 	diffuseShader->SetUniform3fv("lightDir", &finalLightDirection.x);
-	diffuseShader->SetUniform1i("noLighting", wireframeMode);
+	diffuseShader->SetUniform1i("noLighting", renderingMode);
 	diffuseShader->SetUniform1i("useTexture", useTexture);
 
 	// Draw model
@@ -224,9 +236,20 @@ inline void viewportTick(GLFWwindow* window)
 
 		//ImGui::SliderFloat("TEST", &testValue, 0.1f, 2.0f);
 
-		if (ImGui::Button("Wireframe (Z)"))
+		if (ImGui::Button("Render mode (Z)"))
 			KeyPressed(window, GLFW_KEY_Z, 0, GLFW_PRESS, 0);
-		ImGui::Text((wireframeMode ? "Yes" : "No"));
+		if (renderingMode == 0)
+		{
+			ImGui::Text("Fill");
+		}
+		else if (renderingMode == 1)
+		{
+			ImGui::Text("Line");
+		}
+		else
+		{
+			ImGui::Text("Point");
+		}
 
 		if (ImGui::Button("Smooth shading (S)"))
 			KeyPressed(window, GLFW_KEY_S, 0, GLFW_PRESS, 0);

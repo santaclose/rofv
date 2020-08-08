@@ -550,7 +550,13 @@
     <ClInclude Include="src\defaultModel.hpp" />
     <ClInclude Include="src\u\ml.h" />
     <ClInclude Include="src\u\ml_e_dec.h" />
+    <ClInclude Include="src\u\models\crossFractal.hpp" />
+    <ClInclude Include="src\u\models\lineFractal.hpp" />
+    <ClInclude Include="src\u\models\maze.hpp" />
+    <ClInclude Include="src\u\models\treeFractal.hpp" />
+    <ClInclude Include="src\u\models\randomPointCube.hpp" />
     <ClInclude Include="src\u\models\spiralStairs.hpp" />
+    <ClInclude Include="src\u\models\tutuRegalo.hpp" />
     <ClInclude Include="src\u\models\uShapedStairs.hpp" />
     <ClInclude Include="src\u\vl.h" />
     <ClInclude Include="src\WindowHelper.h" />

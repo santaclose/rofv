@@ -52,6 +52,8 @@ namespace ml
 	}
 	void setExporting()
 	{
+		e_output.close();
+		e_fileOpen = false;
 		exporting = true;
 	}
 	void setUseVertexNormals(bool useVertexNormals)
@@ -149,7 +151,7 @@ namespace ml
 		addVertexToVertices(newVertex);
 		return vertexCounter - 1;
 	}
-	unsigned int vertex(::vec& pos, float u, float v)
+	unsigned int vertex(const ::vec& pos, float u, float v)
 	{
 		if (exporting)
 			/*return */e_vertex(pos);
@@ -160,17 +162,17 @@ namespace ml
 		addVertexToVertices(newVertex);
 		return vertexCounter - 1;
 	}
-	unsigned int vertex(::vec&& pos, float u, float v)
+	/*unsigned int vertex(::vec&& pos, float u, float v)
 	{
 		if (exporting)
-			/*return */e_vertex(pos);
+			e_vertex(pos);
 
 		vertexS newVertex = vertexS(pos);
 		newVertex.u = u;
 		newVertex.v = v;
 		addVertexToVertices(newVertex);
 		return vertexCounter - 1;
-	}
+	}*/
 	/*unsigned int vertexCp(::v pos, float u, float v)
 	{
 		if (exporting)
@@ -293,12 +295,13 @@ namespace ml
 	{
 		if (!e_fileOpen)
 		{
-			e_output.open("output.ofv");
+			//e_output.open("output.ofv");
+			e_output.open("output.obj");
 			e_fileOpen = true;
 		}
 		if (!e_objectCreated)
 		{
-			e_output << "o[object]\n";
+			//e_output << "o[object]\n";
 			e_objectCreated = true;
 		}
 	}
@@ -306,49 +309,59 @@ namespace ml
 	void e_vertex(float x, float y, float z)
 	{
 		e_checkObjectAndFile();
-		e_output << 'v' << vertexCounter << '[' << x << ',' << y << ',' << z << "]\n";
+		//e_output << 'v' << vertexCounter << '[' << x << ',' << y << ',' << z << "]\n";
+		e_output << "v " << x << ' ' << y << ' ' << z << '\n';
 		//vertexCounter++;
 		//return vertexCounter - 1;
 	}
-	void e_vertex(vec& pos)
+	void e_vertex(const vec& pos)
 	{
 		e_checkObjectAndFile();
-		e_output << 'v' << vertexCounter << '[' << pos.x << ',' << pos.y << ',' << pos.z << "]\n";
+		//e_output << 'v' << vertexCounter << '[' << pos.x << ',' << pos.y << ',' << pos.z << "]\n";
+		e_output << "v " << pos.x << ' ' << pos.y << ' ' << pos.z << '\n';
 		//vertexCounter++;
 		//return vertexCounter - 1;
 	}
 
 	void e_face(unsigned int* ids, int length)
 	{
-		e_output << "f[";
+		//e_output << "f[";
+		e_output << "f ";
 		for (int i = 0; i < length; i++)
 		{
-			e_output << 'v' << ids[i];
+			e_output << ids[i] + 1;
+			//e_output << 'v' << ids[i];
 			if (i == length - 1)
 			{
-				e_output << "]\n";
+				e_output << '\n';
+				//e_output << "]\n";
 			}
 			else
 			{
-				e_output << ',';
+				e_output << ' ';
+				//e_output << ',';
 			}
 		}
 	}
 	void e_face(unsigned int* ids, int length, bool invert)
 	{
-		e_output << "f[";
+		//e_output << "f[";
+		e_output << "f ";
 		if (invert)
 		{
 			for (int i = length - 1; i > -1; i--)
 			{
-				e_output << 'v' << ids[i];
+				e_output << ids[i] + 1;
+				//e_output << 'v' << ids[i];
 				if (i == 0)
 				{
-					e_output << "]\n";
+					e_output << '\n';
+					//e_output << "]\n";
 				}
 				else
 				{
-					e_output << ',';
+					e_output << ' ';
+					//e_output << ',';
 				}
 			}
 		}
@@ -356,49 +369,60 @@ namespace ml
 		{
 			for (int i = 0; i < length; i++)
 			{
-				e_output << 'v' << ids[i];
+				e_output << ids[i] + 1;
+				//e_output << 'v' << ids[i];
 				if (i == length - 1)
 				{
-					e_output << "]\n";
+					e_output << '\n';
+					//e_output << "]\n";
 				}
 				else
 				{
-					e_output << ',';
+					e_output << ' ';
+					//e_output << ',';
 				}
 			}
 		}
 	}
 	void e_face(unsigned int* ids, int length, int start)
 	{
-		e_output << "f[";
+		//e_output << "f[";
+		e_output << "f ";
 		for (int i = 0; i < length; i++)
 		{
-			e_output << 'v' << ids[i + start];
+			e_output << ids[i + start] + 1;
+			//e_output << 'v' << ids[i + start];
 			if (i == length - 1)
 			{
-				e_output << "]\n";
+				e_output << '\n';
+				//e_output << "]\n";
 			}
 			else
 			{
-				e_output << ',';
+				e_output << ' ';
+				//e_output << ',';
 			}
 		}
 	}
 	void e_face(unsigned int* ids, int length, int start, bool invert)
 	{
-		e_output << "f[";
+		//e_output << "f[";
+		e_output << "f ";
 		if (invert)
 		{
 			for (int i = length - 1; i > -1; i--)
 			{
-				e_output << 'v' << ids[i + start];
+				e_output << ids[i + start] + 1;
+				//e_output << 'v' << ids[i + start];
 				if (i == 0)
 				{
-					e_output << "]\n";
+					e_output << '\n';
+					//e_output << "]\n";
 				}
 				else
 				{
-					e_output << ',';
+					e_output << ' ';
+					//e_output << ',';
 				}
 			}
 		}
@@ -406,21 +430,25 @@ namespace ml
 		{
 			for (int i = 0; i < length; i++)
 			{
-				e_output << 'v' << ids[i + start];
+				e_output << ids[i + start] + 1;
+				//e_output << 'v' << ids[i + start];
 				if (i == length - 1)
 				{
-					e_output << "]\n";
+					e_output << '\n';
+					//e_output << "]\n";
 				}
 				else
 				{
-					e_output << ',';
+					e_output << ' ';
+					//e_output << ',';
 				}
 			}
 		}
 	}
 	void e_faceSeq(unsigned int* ids, int count, int vertsPerFace)
 	{
-		e_output << "f[";
+		//e_output << "f[";
+		e_output << "f ";
 		for (int i = 0; i < count; i++)
 		{
 			e_output << 'v' << ids[i];
@@ -428,16 +456,19 @@ namespace ml
 			{
 				if (i == count - 1)
 				{
-					e_output << "]\n";
+					e_output << '\n';
+					//e_output << "]\n";
 				}
 				else
 				{
-					e_output << "]\nf[";
+					e_output << "\nf ";
+					//e_output << "]\nf[";
 				}
 			}
 			else
 			{
-				e_output << ',';
+				e_output << ' ';
+				//e_output << ',';
 			}
 		}
 	}
