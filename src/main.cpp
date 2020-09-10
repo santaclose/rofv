@@ -22,12 +22,16 @@
 #include "modelTool/ml.h"
 bool haveToGenerateModel = true;
 
-//#include "../assets/models/ripple.hpp"
+#include "../assets/models/archthing/archthing.hpp"
+//#include "../assets/models/basicDoor.hpp"
+//#include "../assets/models/basicWindow.hpp"
+//#include "../assets/models/basicStairs.hpp"
 //#include "../assets/models/spiralStairs.hpp"
-#include "../assets/models/maze.hpp"
+//#include "../assets/models/ripple.hpp"
+//#include "../assets/models/maze.hpp"
 //#include "../assets/models/uShapedStairs.hpp"
 //#include "../assets/models/randomPointCube.hpp"
-//#include "../assets/models/lineFractal.hpp"
+//#include "../assets/models/treeFractal.hpp"
 #ifndef MODEL_SET
 	#include "defaultModel.hpp"
 #endif // !MODEL_SET
@@ -48,12 +52,13 @@ unsigned int indexBuffer;
 //////////////// OPTIONS
 
 int renderingMode = 0;
-bool useVertexNormals = true;
+bool cullBackFace = false;
+bool useVertexNormals = false;
 bool useTexture = false;
-bool saveUvsOption = true;
+bool saveUvsOption = false;
 
 // LIGHT
-glm::vec4 lightDirection = { 0.2, -0.3, -1.0, 0.0 };
+glm::vec4 lightDirection = { -0.2, -0.2, -1.0, 0.0 };
 glm::vec4 finalLightDirection = { 0.2, -0.3, -0.1, 0.0 };
 
 //////////////// DIFFUSE LIGHTING SHADER
@@ -85,11 +90,6 @@ GLFWwindow* initViewport(const int resX, const int resY)
 		return NULL;
 	}
 
-	//glfwSetCursorPosCallback(window, MouseMotion);
-	//glfwSetMouseButtonCallback(window, MouseButtonPressed);
-	//glfwSetScrollCallback(window, MouseScroll);
-	//glfwSetKeyCallback(window, KeyPressed);
-	//glfwSetCharCallback(window, CharCallback);
 	glfwSetFramebufferSizeCallback(window, WindowResizeCallback);
 
 	WindowHelper::Initialize(resX, resY);
@@ -118,7 +118,6 @@ inline void viewportTick(GLFWwindow* window)
 	diffuseShader->SetUniform1i("useTexture", useTexture);
 
 	// Draw model
-
 	if (haveToGenerateModel)
 	{
 		ml::clearModel();
@@ -148,7 +147,7 @@ inline void viewportTick(GLFWwindow* window)
 		ImGui::SetNextWindowSize(ImVec2(WindowHelper::width * IMGUI_WINDOWS_WIDTH_RATIO, WindowHelper::height));
 		ImGui::Begin("Options");
 
-		if (ImGui::Button("Render mode (Z)"))
+		if (ImGui::Button("Render mode"))
 		{
 			renderingMode++;
 			if (renderingMode == 3)
@@ -169,19 +168,13 @@ inline void viewportTick(GLFWwindow* window)
 		}
 
 		if (renderingMode == 0)
-		{
 			ImGui::Text("Fill");
-		}
 		else if (renderingMode == 1)
-		{
 			ImGui::Text("Line");
-		}
 		else
-		{
 			ImGui::Text("Point");
-		}
 
-		if (ImGui::Button("Smooth shading (S)"))
+		if (ImGui::Button("Smooth shading"))
 		{
 			useVertexNormals = !useVertexNormals;
 			ml::setUseVertexNormals(useVertexNormals);
@@ -189,7 +182,21 @@ inline void viewportTick(GLFWwindow* window)
 		}
 		ImGui::Text((useVertexNormals ? "Yes" : "No"));
 
-		if (ImGui::Button("Use texture (T)"))
+		if (ImGui::Button("Cull back face"))
+			cullBackFace = !cullBackFace;
+
+		if (cullBackFace)
+		{
+			glEnable(GL_CULL_FACE);
+			ImGui::Text("Yes");
+		}
+		else
+		{
+			glDisable(GL_CULL_FACE);
+			ImGui::Text("No");
+		}
+
+		if (ImGui::Button("Use texture"))
 			useTexture = !useTexture;
 
 		ImGui::Text((useTexture ? "Yes" : "No"));
@@ -277,6 +284,7 @@ int main(int argc, char** argv)
 	ImGui::CreateContext();
 	auto f = ImGui::GetIO().Fonts->AddFontFromFileTTF("assets/fonts/FiraCode/FiraCode-Regular.ttf", 14.0f);
 	ImGui::GetIO().FontDefault = f;
+
 	// Setup Platform/Renderer bindings
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init();
@@ -285,6 +293,8 @@ int main(int argc, char** argv)
 	// Get GPU info and supported OpenGL version
 	std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
 	std::cout << "OpenGL version supported " << glGetString(GL_VERSION) << std::endl;
+
+	glCullFace(GL_BACK);
 
 	glClearColor(BACKGROUND_COLOR, BACKGROUND_COLOR, BACKGROUND_COLOR, 1);
 	glEnable(GL_DEPTH_TEST);

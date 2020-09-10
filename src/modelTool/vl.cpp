@@ -1,4 +1,5 @@
 #include "vl.h"
+#include <algorithm>
 
 vec::vec()
 {
@@ -12,7 +13,7 @@ vec::vec(const float x, const float y, const float z)
 	this->y = y;
 	this->z = z;
 }
-vec vec::Cross(const vec& other)
+vec vec::Cross(const vec& other) const
 {
 	// i j k
 	// x y z
@@ -26,7 +27,7 @@ vec vec::Cross(const vec& other)
 	res.z = x * other.y - y * other.x;
 	return res;
 }
-float vec::Dot(const vec& other)
+float vec::Dot(const vec& other) const
 {
 	return x * other.x + y * other.y + z * other.z;
 }
@@ -57,45 +58,50 @@ const vec vec::up = vec(0, 1, 0);
 const vec vec::right = vec(1, 0, 0);
 const vec vec::zero = vec(0, 0, 0);
 
-vec operator+(const vec& a, const vec& b)
+
+vec vec::operator+(const vec& b) const
 {
-	vec res(a.x + b.x, a.y + b.y, a.z + b.z);
+	vec res(x + b.x, y + b.y, z + b.z);
 	return res;
 }
 
-void operator+=(vec& a, const vec& b)
+vec vec::operator-(const vec& b) const
 {
-	a.x += b.x;
-	a.y += b.y;
-	a.z += b.z;
-}
-
-vec operator-(const vec& a, const vec& b)
-{
-	vec res(a.x - b.x, a.y - b.y, a.z - b.z);
-	return res;
-}
-void operator-=(vec& a, const vec& b)
-{
-	a.x -= b.x;
-	a.y -= b.y;
-	a.z -= b.z;
-}
-
-vec operator*(const vec& a, const float& factor)
-{
-	vec res(a.x * factor, a.y * factor, a.z * factor);
+	vec res(x - b.x, y - b.y, z - b.z);
 	return res;
 }
 
-vec operator*(const vec& a, const vec& b)
+vec vec::operator-() const
 {
-	vec res(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+	return vec(-x, -y, -z);
+}
+
+void vec::operator+=(const vec& b)
+{
+	x += b.x;
+	y += b.y;
+	z += b.z;
+}
+void vec::operator-=(const vec& b)
+{
+	x -= b.x;
+	y -= b.y;
+	z -= b.z;
+}
+
+vec vec::operator*(float factor) const
+{
+	vec res(x * factor, y * factor, z * factor);
 	return res;
 }
 
-vec operator-(const vec& theV)
+vec vec::operator*(const vec& b) const
 {
-	vec res(theV.x * -1, theV.y * -1, theV.z * -1);
+	vec res(y * b.z - z * b.y, z * b.x - x * b.z, x * b.y - y * b.x);
 	return res;
+}
+
+bool vec::operator==(const vec& b) const
+{
+	return x == b.x && y == b.y && z == b.z;
 }

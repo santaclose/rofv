@@ -7,7 +7,7 @@ namespace ml
 	bool e_objectCreated = false;
 	std::ofstream e_output;
 
-	bool calculateVertexNormals = true;
+	bool calculateVertexNormals = false;
 
 	unsigned int lastDrawVertexCount = 0;
 
@@ -27,6 +27,7 @@ namespace ml
 			indexList[indexCounter] = newIndex;
 		indexCounter++;
 	}
+
 	inline void addVertexToFlatDrawing(vertexS& newVertex)
 	{
 		if (flatDrawing.size() <= flatDrawingCounter)
@@ -69,15 +70,21 @@ namespace ml
 	{
 		if (calculateVertexNormals)
 		{
-			glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(ml::vertexS), &vertices[0], GL_DYNAMIC_DRAW);						// update vertices
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexList.size() * sizeof(unsigned int), &indexList[0], GL_DYNAMIC_DRAW);		// update indices to draw
+			if (vertices.size() > 0)
+			{
+				glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(ml::vertexS), &vertices[0], GL_DYNAMIC_DRAW);				// update vertices
+				glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexList.size() * sizeof(unsigned int), &indexList[0], GL_DYNAMIC_DRAW);		// update indices to draw
 
-			glDrawElements(GL_TRIANGLES, /*indexList.size()*/indexCounter, GL_UNSIGNED_INT, nullptr);
+				glDrawElements(GL_TRIANGLES, /*indexList.size()*/indexCounter, GL_UNSIGNED_INT, nullptr);
+			}
 		}
 		else
 		{
-			glBufferData(GL_ARRAY_BUFFER, flatDrawing.size() * sizeof(ml::vertexS), &flatDrawing[0], GL_DYNAMIC_DRAW);
-			glDrawArrays(GL_TRIANGLES, 0, /*flatDrawing.size()*/flatDrawingCounter);
+			if (flatDrawing.size() > 0)
+			{
+				glBufferData(GL_ARRAY_BUFFER, flatDrawing.size() * sizeof(ml::vertexS), &flatDrawing[0], GL_DYNAMIC_DRAW);
+				glDrawArrays(GL_TRIANGLES, 0, /*flatDrawing.size()*/flatDrawingCounter);
+			}
 		}
 	}
 	void clearModel()
@@ -122,7 +129,7 @@ namespace ml
 		}
 		else
 		{
-			vertexS newVertex(::vec::zero);
+			vertexS newVertex(vec::zero);
 			for (int i = 2; i < theFace.verts.size(); i++) // triangulate
 			{
 				newVertex = vertices[theFace.verts[0]];
@@ -151,7 +158,7 @@ namespace ml
 		addVertexToVertices(newVertex);
 		return vertexCounter - 1;
 	}
-	unsigned int vertex(const ::vec& pos, float u, float v)
+	unsigned int vertex(const vec& pos, float u, float v)
 	{
 		if (exporting)
 			/*return */e_vertex(pos);
@@ -162,29 +169,87 @@ namespace ml
 		addVertexToVertices(newVertex);
 		return vertexCounter - 1;
 	}
-	/*unsigned int vertex(::vec&& pos, float u, float v)
+
+	const vec& getVertexPosition(unsigned int v)
+	{
+		return vertices[v].pos;
+	}
+
+	void setMaterial(const std::string& name)
 	{
 		if (exporting)
-			e_vertex(pos);
+			e_setMaterial(name);
+	}
 
-		vertexS newVertex = vertexS(pos);
-		newVertex.u = u;
-		newVertex.v = v;
-		addVertexToVertices(newVertex);
-		return vertexCounter - 1;
-	}*/
-	/*unsigned int vertexCp(::v pos, float u, float v)
+	bool isPointInTriangle(const vec& p, const vec& ta, const vec& tb, const vec& tc)
 	{
-		if (exporting)
-			/*return *//*e_vertex(pos);
+		vec triangleNormal = (tb - ta) * (tc - ta);
 
-		vertexS newVertex = vertexS(pos);
-		newVertex.u = u;
-		newVertex.v = v;
-		addVertexToVertices(newVertex);
-		return vertexCounter - 1;
-	}*/
-	
+		if (triangleNormal.Dot((tb - ta) * (p - ta)) < 0.0f)
+			return false;
+		if (triangleNormal.Dot((tc - tb) * (p - tb)) < 0.0f)
+			return false;
+		if (triangleNormal.Dot((ta - tc) * (p - tc)) < 0.0f)
+			return false;
+		return true;
+	}
+
+	void concaveFace(unsigned int* ids, int length, bool invert)
+	{
+		// get winding vector and a vector with all the vertices
+		vec winding = vec::zero;
+		std::vector<unsigned int> points;
+		for (int i = 0; i < length; i++)
+		{
+			int n = (i + 1) % length;
+			int nn = (i + 2) % length;
+			winding +=
+				((vertices[ids[n]].pos - vertices[ids[i]].pos) *
+				(vertices[ids[nn]].pos - vertices[ids[i]].pos)) *
+				(invert ? -1.0f : 1.0f);
+
+			points.push_back(ids[i]);
+		}
+
+		// ear clipping algorithm
+		std::vector<unsigned int> triangles;
+		sdf:
+		for (int i = 0; i < points.size(); i++)
+		{
+			int n = (i + 1) % points.size();
+			int nn = (i + 2) % points.size();
+			vec v =
+				((vertices[points[n]].pos - vertices[points[i]].pos) *
+				(vertices[points[nn]].pos - vertices[points[i]].pos)) *
+				(invert ? -1.0f : 1.0f);
+
+			if (winding.Dot(v) > 0.0f) // the triangle winds in the right direction
+			{
+				bool thereIsAPointInside = false;
+				for (unsigned int p : points) // check if the triangle contains a point inside
+				{
+					if (p == points[i] || p == points[n] || p == points[nn])
+						continue;
+					if (isPointInTriangle(vertices[p].pos, vertices[points[i]].pos, vertices[points[n]].pos, vertices[points[nn]].pos))
+					{
+						thereIsAPointInside = true;
+						break;
+					}
+				}
+
+				if (!thereIsAPointInside)
+				{
+					triangles.push_back(invert ? points[nn] : points[i]);
+					triangles.push_back(points[n]);
+					triangles.push_back(invert ? points[i] : points[nn]);
+					points.erase(points.begin() + n);
+					goto sdf;
+				}
+			}
+		}
+		faceSeq(triangles, 3);
+	}
+
 	void face(unsigned int* ids, int length)
 	{
 		if (exporting)
@@ -287,6 +352,15 @@ namespace ml
 				generateFace(fce[curFce]);
 				curFce++;
 			}
+		}
+	}
+	void faceSeq(std::vector<unsigned int>& vertices, int vertsPerFace, bool invert)
+	{
+		for (int i = 0; i < vertices.size(); i += vertsPerFace)
+		{
+			face(&(vertices[i]), vertsPerFace, invert);
+			if (exporting)
+				e_face(&(vertices[i]), vertsPerFace, invert);
 		}
 	}
 
@@ -471,5 +545,11 @@ namespace ml
 				//e_output << ',';
 			}
 		}
+	}
+
+	void e_setMaterial(const std::string& name)
+	{
+		e_checkObjectAndFile();
+		e_output << "usemtl " << name << '\n';
 	}
 }

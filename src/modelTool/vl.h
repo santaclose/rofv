@@ -1,6 +1,8 @@
 #pragma once
 #include <math.h>
 
+#define PI 3.14159265358979323846264
+
 struct vec
 {
 	float x;
@@ -9,8 +11,8 @@ struct vec
 
 	vec();
 	vec(float x, float y, float z);
-	vec Cross(const vec& other);
-	float Dot(const vec& other);
+	vec Cross(const vec& other) const;
+	float Dot(const vec& other) const;
 	float Magnitude() const;
 	vec Normalized() const;
 	void Normalize();
@@ -19,12 +21,13 @@ struct vec
 	static const vec up;
 	static const vec right;
 	static const vec zero;
-};
 
-vec operator+(const vec& a, const vec& b);
-void operator+=(vec& a, const vec& b);
-vec operator-(const vec& a, const vec& b);
-void operator-=(vec& a, const vec& b);
-vec operator*(const vec& a, const float& factor);
-vec operator*(const vec& a, const vec& b);
-vec operator-(const vec& theV);
+	vec operator+(const vec& b) const;
+	vec operator-(const vec& b) const;
+	vec operator-() const;
+	void operator+=(const vec& b);
+	void operator-=(const vec& b);
+	vec operator*(float factor) const;
+	vec operator*(const vec& b) const;
+	bool operator==(const vec& b) const;
+};
