@@ -30,4 +30,5 @@ struct vec
 	vec operator*(float factor) const;
 	vec operator*(const vec& b) const;
 	bool operator==(const vec& b) const;
+	bool operator!=(const vec& b) const;
 };

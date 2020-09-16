@@ -15,6 +15,12 @@ namespace Utils {
     {
         return std::abs((lineA - point).Magnitude() + (lineB - point).Magnitude() - (lineA - lineB).Magnitude()) < threshold;
     }
+    inline bool isPointInLineSegment2D(vec lineA, vec lineB, vec point, float threshold = 0.01f)
+    {
+        vec la = lineA, lb = lineB, p = point;
+        la.y = lb.y = p.y = 0.0f;
+        return std::abs((la - p).Magnitude() + (lb - p).Magnitude() - (la - lb).Magnitude()) < threshold;
+    }
 
     template <typename T>
     void addWithoutRepeating(std::vector<T>& list, T item)
@@ -144,6 +150,9 @@ namespace Utils {
             // dont consider connected edges
             if (edge.a == i || edge.b == i)
                 continue;
+            // dont consider edges in other floors
+            if (abs(vertices[edge.a].pos.y - vertices[i].pos.y) > 0.001f)
+                continue;
 
             if (intersect(vertices[edge.a].pos, vertices[edge.b].pos, vertices[i].pos, vertices[i].pos + rayDir * rayDistance))
                 return true;
@@ -155,6 +164,9 @@ namespace Utils {
     {
         for (int i = 0; i < vertices.size(); i++)
         {
+            if (abs(vertices[i].pos.y - wallHeight * floor) > 0.001f) // vertex not in the requested floor
+                continue;
+
             std::vector<std::pair<int, float>> vertexAngle;
             getAdjacentsSortedByAngle(vertices, edges, i, vertexAngle);
 
@@ -162,7 +174,7 @@ namespace Utils {
             {
                 int b = (a + 1) % vertexAngle.size();
 
-                if (!castRayFromCorner(vertices, edges, rayDistance, i, vertexAngle[a].first, vertexAngle[b].first) && vertices[i].pos.y == wallHeight * floor)
+                if (!castRayFromCorner(vertices, edges, rayDistance, i, vertexAngle[a].first, vertexAngle[b].first))
                     return { i, vertexAngle[b].first };
             }
         }
@@ -503,5 +515,170 @@ namespace Utils {
         }
 
         std::cout << "removed " << originalVertices.size() - vertices.size() << " vertices\n";
+    }
+
+    int mod(int number, int mod)
+    {
+        if (number < 0)
+            number += mod * (-number / mod + 1);
+        return number % mod;
+    }
+
+    inline bool areVectorsEqual2D(vec a, vec b, float threshold = 0.001f)
+    {
+        vec displacement = a - b;
+        displacement.y = 0.0f;
+        return displacement.Magnitude() < 0.001f; // same position or pretty close
+    }
+
+    void getIntermediateRoofPieces(
+        const std::vector<vec>& below,
+        const std::vector<vec>& above,
+        std::vector<std::vector<vec>>& roofPieces)
+    {
+        // find first common vertex
+        unsigned int fcva = 0;
+        unsigned int fcvb;
+        for (; fcva < above.size(); fcva++)
+        {
+            fcvb = 0;
+            for (; fcvb < below.size(); fcvb++)
+            {
+                if (areVectorsEqual2D(below[fcvb], above[fcva]))
+                {
+                    std::cout << "found first common vertex: " << above[fcva].x << ", " << above[fcva].z << std::endl;
+                    goto tag;
+                }
+            }
+        }
+
+        // no common vertices
+        return;
+
+    tag:
+        bool noVertexCollision = false;
+        bool pushingVertices = false;
+        int a0 = fcva;
+        int a1 = mod(a0 + 1, above.size());
+        int b = fcvb;
+
+        while (a1 != fcva) // iterate through above edges
+        {
+            //std::cout << "edge iteration\n";
+            while (true)
+            {
+                b = mod(b + 1, below.size());
+
+                if (areVectorsEqual2D(below[b], above[a1]))
+                {
+                    noVertexCollision = false;
+                    break;
+                }
+                if (isPointInLineSegment2D(below[mod(b-1, below.size())], below[b], above[a1]))
+                {
+                    noVertexCollision = true;
+
+                    vec toPush = above[a1];
+                    toPush.y = below[0].y;
+
+                    if (!pushingVertices)
+                    {
+                        roofPieces.emplace_back();
+                        //std::cout << "roof piece created\n";
+                    }
+
+                    roofPieces.back().push_back(toPush);
+                    //std::cout << "roof piece vertex added\n";
+
+                    if (!pushingVertices)
+                    {
+                        roofPieces.back().push_back(below[b]);
+                        //std::cout << "roof piece vertex added\n";
+                    }
+
+                    pushingVertices = true;
+
+                    break;
+                }
+
+                if (isPointInLineSegment2D(above[a0], above[a1], below[b]))
+                {
+                    pushingVertices = !pushingVertices;
+                    if (pushingVertices)
+                    {
+                        roofPieces.emplace_back();
+                        //std::cout << "roof piece created\n";
+                    }
+                    else
+                    {
+                        roofPieces.back().push_back(below[b]);
+                        //std::cout << "roof piece vertex added\n";
+                    }
+                }
+
+                if (pushingVertices)
+                {
+                    roofPieces.back().push_back(below[b]);
+                    //std::cout << "roof piece vertex added\n";
+                }
+            }
+            
+            a0 = a1;
+            a1 = mod(a1 + 1, above.size());
+        }
+
+        /*int a = mod(fcva + 1, above.size());
+        int b = mod(fcvb + 1, below.size());
+        while (true)
+        {
+            // next and previous vertices above and below
+            int na = mod(a + 1, above.size());
+            int nb = mod(b + 1, below.size());
+            int pa = mod(a - 1, above.size());
+            int pb = mod(b - 1, below.size());
+
+            if (!areVectorsEqual2D(above[a], below[b]))
+            {
+                roofPieces.emplace_back();
+                if (isPointInLineSegment2D(below[pb], below[b], above[a]))
+                {
+                    vec toPush = above[a];
+                    toPush.y = below[0].y;
+                    roofPieces.back().push_back(toPush);
+
+                    a = mod(a + 1, above.size());
+                    na = mod(a + 1, above.size());
+                    pa = mod(a - 1, above.size());
+
+                    while (!areVectorsEqual2D(above[a], below[b]))
+                    {
+                        roofPieces.back().push_back(below[b]);
+                        b = mod(b + 1, below.size());
+                        nb = mod(b + 1, below.size());
+                        pb = mod(b - 1, below.size());
+                    }
+                }
+                else
+                {
+                    while (!areVectorsEqual2D(above[a], below[b]))
+                    {
+                        roofPieces.back().push_back(below[b]);
+                        b = mod(b + 1, below.size());
+                        nb = mod(b + 1, below.size());
+                        pb = mod(b - 1, below.size());
+                    }
+                    //roofPieces.back().push_back(below[b]);
+                }
+            }
+            else
+            {
+                a = mod(a + 1, above.size());
+                b = mod(b + 1, below.size());
+            }
+
+            // traversed all the polygon
+            if (a == fcva)
+                break;
+        }*/
     }
 }

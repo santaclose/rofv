@@ -105,3 +105,8 @@ bool vec::operator==(const vec& b) const
 {
 	return x == b.x && y == b.y && z == b.z;
 }
+
+bool vec::operator!=(const vec& b) const
+{
+	return !operator==(b);
+}

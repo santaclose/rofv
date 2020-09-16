@@ -128,7 +128,7 @@ void generateModel()
 	std::vector<gv> vertices;
 	std::vector<ge> edges;
 	unsigned int floorCount;
-	Utils::readOBJ(vertices, edges, floorCount, "assets/testHF.obj");
+	Utils::readOBJ(vertices, edges, floorCount, "assets/archthing/intensiveTesting/a.obj");
 
 	std::cout << "-- removing repeated vertices\n";
 	Utils::removeDuplicated(vertices, edges);
@@ -191,6 +191,7 @@ void generateModel()
 	
 	std::vector<int> externalVertices, externalCorners;
 	std::vector<vec> externalCornerPositions;
+	std::vector<vec> belowExternalCornerPositions;
 	for (unsigned int i = 0; i < floorCount; i++)
 	{
 		externalVertices.clear();
@@ -200,7 +201,32 @@ void generateModel()
 		externalCornerPositions.clear();
 		for (int c : externalCorners)
 			externalCornerPositions.push_back(vertices[c].pos);
-		Floor::Create(externalCornerPositions, i > 0);
+		Floor::Create(externalCornerPositions, i > 0); // no ceiling when i == 0
+
+		if (belowExternalCornerPositions.size() > 0) // if not first floor
+		{
+			std::vector<std::vector<vec>> intermediateRoofPieces;
+			Utils::getIntermediateRoofPieces(
+				belowExternalCornerPositions,
+				externalCornerPositions,
+				intermediateRoofPieces);
+
+			std::cout << "intermediate thing:\n";
+
+			for (const std::vector<vec>& piece : intermediateRoofPieces)
+				Roof::Create(piece);
+
+			//for (vec& v : intermediate)
+			//	std::cout << "   " << v.x << ", " << v.z << std::endl;
+
+			//std::cout << "above:\n";
+			//for (vec& v : externalCornerPositions)
+			//	std::cout << "   " << v.x << ", " << v.z << std::endl;
+			//std::cout << std::endl << "below:\n";
+			//for (vec& v : belowExternalCornerPositions)
+			//	std::cout << "   " << v.x << ", " << v.z << std::endl;
+		}
+		belowExternalCornerPositions = externalCornerPositions;
 	}
 	Roof::Create(externalCornerPositions);
 
