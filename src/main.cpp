@@ -22,20 +22,7 @@
 #include "modelTool/ml.h"
 bool haveToGenerateModel = true;
 
-#include "../assets/models/archthing/archthing.hpp"
-//#include "../assets/models/basicDoor.hpp"
-//#include "../assets/models/basicWindow.hpp"
-//#include "../assets/models/basicStairs.hpp"
-//#include "../assets/models/spiralStairs.hpp"
-//#include "../assets/models/ripple.hpp"
-//#include "../assets/models/maze.hpp"
-//#include "../assets/models/uShapedStairs.hpp"
-//#include "../assets/models/randomPointCube.hpp"
-//#include "../assets/models/treeFractal.hpp"
-#ifndef MODEL_SET
-	#include "defaultModel.hpp"
-#endif // !MODEL_SET
-
+#include "Model.h"
 
 #define VIEWPORT_WIDTH 1280
 #define VIEWPORT_HEIGHT 800
@@ -121,11 +108,7 @@ inline void viewportTick(GLFWwindow* window)
 	if (haveToGenerateModel)
 	{
 		ml::clearModel();
-#ifndef MODEL_SET
-		defaultModel::generateModel();
-#else
-		generateModel();
-#endif
+		Model::GenerateModel();
 		haveToGenerateModel = false;
 		ml::afterGenerate();
 	}
@@ -217,23 +200,13 @@ inline void viewportTick(GLFWwindow* window)
 			std::cout << "exporting as obj\n";
 		}
 		
-#ifndef MODEL_SET
-		ImGui::Text("No model code detected");
-#endif
-
 		ImGui::End();
 
 		ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
 		ImGui::SetNextWindowSize(ImVec2(WindowHelper::width * IMGUI_WINDOWS_WIDTH_RATIO, WindowHelper::height));
 		ImGui::Begin("Parameters");
 
-#ifdef MODEL_SET
-#ifdef BINDINGS
-		bindings();
-#endif // BINDINGS
-#else // MODEL_SET
-		defaultModel::bindings();
-#endif // MODEL_SET
+		Model::Bindings(haveToGenerateModel);
 
 		ImGui::End();
 	}

@@ -1,8 +1,13 @@
-#include "../../src/modelTool/ml.h"
+#include "../../src/Model.h"
+#include <modelTool/ml.h>
 #include <fstream>
+#include <iostream>
 #include <string>
-#define MODEL_SET
-#define BINDINGS
+#include <imgui.h>
+
+#include "Wireframe.h"
+#include "objReader.h"
+#include "Utils.hpp"
 
 float inputScale = 1.0f;
 float wallHeight = 4.26f;
@@ -22,32 +27,14 @@ float roofBevel = 0.3f;
 float roofDepth = 0.2f;
 float floorThickness = 0.25f;
 
-enum class EdgeType { Wall = 0, Door = 1, Window = 2, StandardStairs = 3, SpiralStairs = 4 };
-struct ge;
-struct gv
-{
-	int id;
-	std::vector<int> conn;
-	vec pos;
-};
-struct ge
-{
-	EdgeType type;
-	int a;
-	int b;
-};
-
-#include "archutils.hpp"
-
 #include "basicWall.hpp"
 #include "basicDoor.hpp"
 #include "basicWindow.hpp"
 #include "basicStairs.hpp"
 #include "basicRoof.hpp"
 #include "basicFloor.hpp"
-//#include "spiralStairs.hpp"
 
-void bindings()
+void Model::Bindings(bool& haveToGenerateModel)
 {
 	BIND(SliderFloat, "Input Scale", &inputScale, 0.01f, 20.0f);
 	BIND(SliderFloat, "Wall Height", &wallHeight, 1.0f, 20.0f);
@@ -62,30 +49,30 @@ void bindings()
 	BIND(SliderFloat, "Window Height", &windowHeight, 0.5f, 3.0f);
 	BIND(SliderFloat, "Window Frame Width", &windowFrameWidth, 0.01f, 0.1f);
 	BIND(SliderFloat, "Window Frame Thickness", &windowFrameThickness, 0.01f, 0.3f);
-	BIND(SliderFloat, "Roof Thickness", &roofThickness, 0.01f, 0.6f);
-	BIND(SliderFloat, "Roof Bevel", &roofBevel, 0.01f, 0.6f);
+	BIND(SliderFloat, "Roof Thickness", &roofThickness, 0.01f, 1.0f);
+	BIND(SliderFloat, "Roof Bevel", &roofBevel, 0.01f, 1.5f);
 	BIND(SliderFloat, "Roof Depth", &roofDepth, 0.01f, 0.6f);
 	BIND(SliderFloat, "Floor Thickness", &floorThickness, 0.01f, 0.6f);
 }
 
-void createWallVertices(const std::vector<gv>& vertices, const std::vector<ge>& edges, std::vector<std::vector<std::pair<unsigned int, unsigned int>>>& wallVertices)
+void createWallVertices(const Wireframe& wf, std::vector<std::vector<std::pair<unsigned int, unsigned int>>>& wallVertices)
 {
-	wallVertices.resize(vertices.size());
+	wallVertices.resize(wf.vertices.size());
 
-	for (int i = 0; i < vertices.size(); i++)
+	for (int i = 0; i < wf.vertices.size(); i++)
 	{
 		//std::cout << "iteration " << i << std::endl;
 
 		std::vector<vec> adj;
 		bool isStairsVertex = false;
-		for (int c : vertices[i].conn)
+		for (int c : wf.vertices[i].conn)
 		{
-			if (edges[c].type >= EdgeType::StandardStairs)
+			if (wf.edges[c].type >= EdgeType::StandardStairs)
 			{
 				isStairsVertex = true;
 				break;
 			}
-			adj.push_back(edges[c].a == i ? vertices[edges[c].b].pos : vertices[edges[c].a].pos);
+			adj.push_back(wf.edges[c].a == i ? wf.vertices[wf.edges[c].b].pos : wf.vertices[wf.edges[c].a].pos);
 		}
 
 		if (!isStairsVertex)
@@ -93,14 +80,14 @@ void createWallVertices(const std::vector<gv>& vertices, const std::vector<ge>& 
 			if (adj.size() == 1)
 			{
 				{
-					vec corner = vertices[i].pos + (vec::up * (adj[0] - vertices[i].pos)).Normalized() * (wallThickness * 0.5f);
+					vec corner = wf.vertices[i].pos + (vec::up * (adj[0] - wf.vertices[i].pos)).Normalized() * (wallThickness * 0.5f);
 					unsigned int base = ml::vertex(corner);
 					unsigned int top = ml::vertex(corner + vec::up * wallHeight);
 					wallVertices[i].push_back({ base, top });
 					//Door::Cylinder(0.01f, 3, corner, corner + vec::up * wallHeight);
 				}
 				{
-					vec corner = vertices[i].pos + ((adj[0] - vertices[i].pos) * vec::up).Normalized() * (wallThickness * 0.5f);
+					vec corner = wf.vertices[i].pos + ((adj[0] - wf.vertices[i].pos) * vec::up).Normalized() * (wallThickness * 0.5f);
 					unsigned int base = ml::vertex(corner);
 					unsigned int top = ml::vertex(corner + vec::up * wallHeight);
 					wallVertices[i].push_back({ base, top });
@@ -110,7 +97,7 @@ void createWallVertices(const std::vector<gv>& vertices, const std::vector<ge>& 
 			else
 			{
 				std::vector<vec> connectionPoints;
-				Utils::getConnectionPoints(vertices[i].pos, adj, wallThickness, connectionPoints);
+				Utils::getConnectionPoints(wf.vertices[i].pos, adj, wallThickness, connectionPoints);
 				for (vec& cp : connectionPoints)
 				{
 					unsigned int base = ml::vertex(cp);
@@ -123,29 +110,25 @@ void createWallVertices(const std::vector<gv>& vertices, const std::vector<ge>& 
 	}
 }
 
-void generateModel()
+void Model::GenerateModel()
 {
-	std::vector<gv> vertices;
-	std::vector<ge> edges;
 	unsigned int floorCount;
-	Utils::readOBJ(vertices, edges, floorCount, "assets/archthing/intensiveTesting/a.obj");
-
-	std::cout << "-- removing repeated vertices\n";
-	Utils::removeDuplicated(vertices, edges);
+	Wireframe wf;
+	OBJReader::Read(wf, floorCount, "assets/archthing/i/4.obj", wallHeight, inputScale);
 
 	std::cout << "-- sorting vertex connections\n";
-	Utils::sortVertexConnectionsByAngle(vertices, edges);
+	Utils::sortVertexConnectionsByAngle(wf);
 	std::vector<std::vector<std::pair<unsigned int, unsigned int>>> wallVertices;
 
 	std::cout << "-- creating wall vertices\n";
-	createWallVertices(vertices, edges, wallVertices);
+	createWallVertices(wf, wallVertices);
 
 	std::cout << "-- creating geometry\n";
 
 	unsigned int currentEdge = 0;
-	for (ge& edge : edges)
+	for (ge& edge : wf.edges)
 	{
-		vec displacement = vertices[edge.b].pos - vertices[edge.a].pos;
+		vec displacement = wf.vertices[edge.b].pos - wf.vertices[edge.a].pos;
 
 		// get wall vertices for edge
 		unsigned int currentEdgeWallVertices[8];
@@ -153,11 +136,11 @@ void generateModel()
 		{
 			// find vertex connection indices
 			int i = 0, j = 0;
-			for (; i < vertices[edge.a].conn.size(); i++)
-				if (vertices[edge.a].conn[i] == currentEdge)
+			for (; i < wf.vertices[edge.a].conn.size(); i++)
+				if (wf.vertices[edge.a].conn[i] == currentEdge)
 					break;
-			for (; j < vertices[edge.b].conn.size(); j++)
-				if (vertices[edge.b].conn[j] == currentEdge)
+			for (; j < wf.vertices[edge.b].conn.size(); j++)
+				if (wf.vertices[edge.b].conn[j] == currentEdge)
 					break;
 			currentEdgeWallVertices[0] = wallVertices[edge.a][((i + 0 + wallVertices[edge.a].size()) % wallVertices[edge.a].size())].first;
 			currentEdgeWallVertices[1] = wallVertices[edge.a][((i - 1 + wallVertices[edge.a].size()) % wallVertices[edge.a].size())].first;
@@ -173,13 +156,13 @@ void generateModel()
 		switch (edge.type)
 		{
 		case EdgeType::Wall:
-			Wall::Create(currentEdgeWallVertices, vertices, edges, edge);
+			Wall::Create(currentEdgeWallVertices, wf.vertices, wf.edges, edge);
 			break;
 		case EdgeType::Door:
-			Door::Create(currentEdgeWallVertices, vertices, edges, edge);
+			Door::Create(currentEdgeWallVertices, wf.vertices, wf.edges, edge);
 			break;
 		case EdgeType::Window:
-			Window::Create(currentEdgeWallVertices, vertices, edges, edge);
+			Window::Create(currentEdgeWallVertices, wf.vertices, wf.edges, edge);
 			break;
 		case EdgeType::SpiralStairs:
 			break;
@@ -188,7 +171,7 @@ void generateModel()
 		}
 		currentEdge++;
 	}
-	
+
 	std::vector<int> externalVertices, externalCorners;
 	std::vector<vec> externalCornerPositions;
 	std::vector<vec> belowExternalCornerPositions;
@@ -196,22 +179,24 @@ void generateModel()
 	{
 		externalVertices.clear();
 		externalCorners.clear();
-		Utils::getExternal(vertices, edges, externalVertices, externalCorners, i);
+		Utils::getExternal(wf, externalVertices, externalCorners, i, wallHeight);
 
 		externalCornerPositions.clear();
 		for (int c : externalCorners)
-			externalCornerPositions.push_back(vertices[c].pos);
+			externalCornerPositions.push_back(wf.vertices[c].pos);
 		Floor::Create(externalCornerPositions, i > 0); // no ceiling when i == 0
 
 		if (belowExternalCornerPositions.size() > 0) // if not first floor
 		{
 			std::vector<std::vector<vec>> intermediateRoofPieces;
-			Utils::getIntermediateRoofPieces(
+			std::vector<std::vector<vec>> intermediateCeilingPieces;
+			Utils::getIntermediatePieces(
 				belowExternalCornerPositions,
 				externalCornerPositions,
-				intermediateRoofPieces);
+				intermediateRoofPieces,
+				intermediateCeilingPieces);
 
-			std::cout << "intermediate thing:\n";
+			std::cout << "intermediate roof pieces:\n";
 
 			for (const std::vector<vec>& piece : intermediateRoofPieces)
 				Roof::Create(piece);
@@ -229,15 +214,4 @@ void generateModel()
 		belowExternalCornerPositions = externalCornerPositions;
 	}
 	Roof::Create(externalCornerPositions);
-
-	/*
-	std::vector<int> externalVertices, externalCorners;
-	Utils::getExternal(vertices, edges, externalVertices, externalCorners);
-
-	std::vector<vec> externalCornerPositions;
-	for (int c : externalCorners)
-		externalCornerPositions.push_back(vertices[c].pos);
-
-	Floor::Create(externalCornerPositions);
-	Roof::Create(externalCornerPositions);*/
 }
