@@ -1,1 +1,1 @@
-bin\\Release-windows-x86_64\\rofv\\rofv.exe
+bin\\\Release-windows-x86_64\\rofv\\rofv.exe

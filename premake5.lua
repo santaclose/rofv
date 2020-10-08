@@ -15,13 +15,6 @@ workspace "rofv"
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
-IncludeDir = {}
-IncludeDir["GLFW"] = "vendor/GLFW/include"
-IncludeDir["Glad"] = "vendor/Glad/include"
-IncludeDir["ImGui"] = "vendor/imgui"
-IncludeDir["glm"] = "vendor/glm"
-IncludeDir["stb_image"] = "vendor/stb_image"
-
 -- Projects
 group "Dependencies"
 	include "vendor/GLFW"
@@ -40,12 +33,14 @@ project "rofv"
 
 	files
 	{
+		"examples/flower.cpp",
 		"src/**.h",
 		"src/**.cpp",
 		"vendor/stb_image/**.h",
 		"vendor/stb_image/**.cpp",
 		"vendor/glm/glm/**.hpp",
 		"vendor/glm/glm/**.inl",
+		"vendor/baseGL/src/*.cpp"
 	}
 
 	defines
@@ -56,11 +51,13 @@ project "rofv"
 	includedirs
 	{
 		"src",
-		"%{IncludeDir.GLFW}",
-		"%{IncludeDir.Glad}",
-		"%{IncludeDir.ImGui}",
-		"%{IncludeDir.glm}",
-		"%{IncludeDir.stb_image}"
+		"vendor/spdlog/include",
+		"vendor/GLFW/include",
+		"vendor/Glad/include",
+		"vendor/imgui",
+		"vendor/glm",
+		"vendor/stb_image",
+		"vendor/baseGL/src"
 	}
 
 	links 

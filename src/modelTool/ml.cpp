@@ -1,23 +1,149 @@
 #include "ml.h"
+#include <Model.h>
+#include <iostream>
 
 namespace ml
 {
+	struct vertexS
+	{
+		vec pos;
+		vec normal;
+		float u;
+		float v;
+
+		vertexS(float x, float y, float z) { pos = vec(x, y, z); u = 0.0; v = 0.0; }
+		vertexS(vec p) { pos = p; u = 0.0; v = 0.0; }
+	};
+	struct faceS
+	{
+		std::vector<unsigned int> verts;
+		vec normal;
+	};
+
+	bool smoothMode = false;
 	bool exporting = false;
+	unsigned int lastDrawVertexCount = 0;
+
+	std::string exportFileName = "assets/exported/output.obj";
 	bool e_fileOpen = false;
 	bool e_objectCreated = false;
 	std::ofstream e_output;
 
-	bool calculateVertexNormals = false;
-
-	unsigned int lastDrawVertexCount = 0;
-
 	unsigned int vertexCounter = 0;
-	unsigned int flatDrawingCounter = 0;
+	unsigned int facetedDrawingCounter = 0;
 	unsigned int indexCounter = 0;
 
-	std::vector<vertexS> flatDrawing; // duplicate vertices to create facets if not calculating vertex normals
+	std::vector<vertexS> facetedDrawing;
 	std::vector<vertexS> vertices;
 	std::vector<unsigned int> indexList;
+
+	unsigned int facetedVAO;
+	unsigned int facetedVBO;
+
+	unsigned int smoothVAO;
+	unsigned int smoothVBO;
+	unsigned int smoothIBO;
+
+	void Initialize()
+	{
+		glGenVertexArrays(1, &facetedVAO);
+		glGenBuffers(1, &facetedVBO);
+		glBindVertexArray(facetedVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, facetedVBO);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertexS), (void*) 0);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertexS), (void*) offsetof(vertexS, normal));
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertexS), (void*) offsetof(vertexS, u));
+
+		glGenVertexArrays(1, &smoothVAO);
+		glGenBuffers(1, &smoothVBO);
+		glGenBuffers(1, &smoothIBO);
+		glBindVertexArray(smoothVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, smoothVBO);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, smoothIBO);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(vertexS), (void*)0);
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(vertexS), (void*)offsetof(vertexS, normal));
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(vertexS), (void*)offsetof(vertexS, u));
+
+		glBindVertexArray(0);
+	}
+	void Terminate()
+	{
+		facetedDrawing.clear();
+		indexList.clear();
+		vertices.clear();
+	}
+	void SetExporting()
+	{
+		e_output.close();
+		e_fileOpen = false;
+		exporting = true;
+	}
+	bool SetSmoothMode(bool value)
+	{
+		if (smoothMode == value)
+			return false;
+		smoothMode = value;
+		return true;
+	}
+	unsigned int GetLastDrawVertexCount()
+	{
+		return lastDrawVertexCount;
+	}
+	void GenerateModel(bool& generationPending)
+	{
+		// clear model
+		vertexCounter = 0;
+		indexCounter = 0;
+		facetedDrawingCounter = 0;
+
+		Model::GenerateModel();
+		generationPending = false;
+
+		lastDrawVertexCount = vertexCounter;
+		if (exporting)
+		{
+			e_output.close();
+			exporting = false;
+		}
+		
+		if (smoothMode)
+		{
+			glBindBuffer(GL_ARRAY_BUFFER, smoothVBO);
+			glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(ml::vertexS), &vertices[0], GL_DYNAMIC_DRAW);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, smoothIBO);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexList.size() * sizeof(unsigned int), &indexList[0], GL_DYNAMIC_DRAW);
+		}
+		else
+		{
+			glBindBuffer(GL_ARRAY_BUFFER, facetedVBO);
+			glBufferData(GL_ARRAY_BUFFER, facetedDrawing.size() * sizeof(ml::vertexS), &facetedDrawing[0], GL_DYNAMIC_DRAW);
+		}
+	}
+	void DrawModel()
+	{
+		if (smoothMode)
+		{
+			if (vertices.size() > 0)
+			{
+				glBindVertexArray(smoothVAO);
+				glDrawElements(GL_TRIANGLES, indexCounter, GL_UNSIGNED_INT, nullptr);
+			}
+		}
+		else
+		{
+			if (facetedDrawing.size() > 0)
+			{
+				glBindVertexArray(facetedVAO);
+				glDrawArrays(GL_TRIANGLES, 0, facetedDrawingCounter);
+			}
+		}
+	}
 
 	inline void addIndex(unsigned int newIndex)
 	{
@@ -27,14 +153,13 @@ namespace ml
 			indexList[indexCounter] = newIndex;
 		indexCounter++;
 	}
-
 	inline void addVertexToFlatDrawing(vertexS& newVertex)
 	{
-		if (flatDrawing.size() <= flatDrawingCounter)
-			flatDrawing.push_back(newVertex);
+		if (facetedDrawing.size() <= facetedDrawingCounter)
+			facetedDrawing.push_back(newVertex);
 		else
-			flatDrawing[flatDrawingCounter] = newVertex;
-		flatDrawingCounter++;
+			facetedDrawing[facetedDrawingCounter] = newVertex;
+		facetedDrawingCounter++;
 	}
 	inline void addVertexToVertices(vertexS& newVertex)
 	{
@@ -44,76 +169,16 @@ namespace ml
 			vertices[vertexCounter] = newVertex;
 		vertexCounter++;
 	}
-
-	void destroyEverything()
-	{
-		flatDrawing.clear();
-		indexList.clear();
-		vertices.clear();
-	}
-	void setExporting()
-	{
-		e_output.close();
-		e_fileOpen = false;
-		exporting = true;
-	}
-	void setUseVertexNormals(bool useVertexNormals)
-	{
-		calculateVertexNormals = useVertexNormals;
-	}
-	int getLastDrawVertexCount()
-	{
-		return lastDrawVertexCount;
-	}
-
-	void drawModel()
-	{
-		if (calculateVertexNormals)
-		{
-			if (vertices.size() > 0)
-			{
-				glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(ml::vertexS), &vertices[0], GL_DYNAMIC_DRAW);				// update vertices
-				glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexList.size() * sizeof(unsigned int), &indexList[0], GL_DYNAMIC_DRAW);		// update indices to draw
-
-				glDrawElements(GL_TRIANGLES, /*indexList.size()*/indexCounter, GL_UNSIGNED_INT, nullptr);
-			}
-		}
-		else
-		{
-			if (flatDrawing.size() > 0)
-			{
-				glBufferData(GL_ARRAY_BUFFER, flatDrawing.size() * sizeof(ml::vertexS), &flatDrawing[0], GL_DYNAMIC_DRAW);
-				glDrawArrays(GL_TRIANGLES, 0, /*flatDrawing.size()*/flatDrawingCounter);
-			}
-		}
-	}
-	void clearModel()
-	{
-		vertexCounter = 0;
-		indexCounter = 0;
-		flatDrawingCounter = 0;
-	}
-	void afterGenerate()
-	{
-		lastDrawVertexCount = vertexCounter;
-		if (exporting)
-		{
-			e_output.close();
-			exporting = false;
-		}
-	}
-
 	inline vec calcNormal(faceS& theFace)
 	{
 		return ((vertices[theFace.verts[1]].pos - vertices[theFace.verts[0]].pos) *
 			(vertices[theFace.verts[2]].pos - vertices[theFace.verts[1]].pos)).Normalized();
 	}
-
 	void generateFace(faceS& theFace) // adds the face to the buffer
 	{
 		vec normal = calcNormal(theFace);
 
-		if (calculateVertexNormals)
+		if (smoothMode)
 		{
 			for (unsigned int theVertex : theFace.verts) // update all vertex normals of the face
 			{
@@ -144,6 +209,18 @@ namespace ml
 			}
 		}
 	}
+	bool isPointInTriangle(const vec& p, const vec& ta, const vec& tb, const vec& tc)
+	{
+		vec triangleNormal = (tb - ta) * (tc - ta);
+
+		if (triangleNormal.Dot((tb - ta) * (p - ta)) < 0.0f)
+			return false;
+		if (triangleNormal.Dot((tc - tb) * (p - tb)) < 0.0f)
+			return false;
+		if (triangleNormal.Dot((ta - tc) * (p - tc)) < 0.0f)
+			return false;
+		return true;
+	}
 
 #include "ml_e_dec.h"
 
@@ -169,31 +246,10 @@ namespace ml
 		addVertexToVertices(newVertex);
 		return vertexCounter - 1;
 	}
-
 	const vec& getVertexPosition(unsigned int v)
 	{
 		return vertices[v].pos;
 	}
-
-	void setMaterial(const std::string& name)
-	{
-		if (exporting)
-			e_setMaterial(name);
-	}
-
-	bool isPointInTriangle(const vec& p, const vec& ta, const vec& tb, const vec& tc)
-	{
-		vec triangleNormal = (tb - ta) * (tc - ta);
-
-		if (triangleNormal.Dot((tb - ta) * (p - ta)) < 0.0f)
-			return false;
-		if (triangleNormal.Dot((tc - tb) * (p - tb)) < 0.0f)
-			return false;
-		if (triangleNormal.Dot((ta - tc) * (p - tc)) < 0.0f)
-			return false;
-		return true;
-	}
-
 	void concaveFace(unsigned int* ids, int length, bool invert)
 	{
 		// get winding vector and a vector with all the vertices
@@ -249,7 +305,6 @@ namespace ml
 		}
 		faceSeq(triangles, 3);
 	}
-
 	void face(unsigned int* ids, int length)
 	{
 		if (exporting)
@@ -363,6 +418,11 @@ namespace ml
 				e_face(&(vertices[i]), vertsPerFace, invert);
 		}
 	}
+	void setMaterial(const std::string& name)
+	{
+		if (exporting)
+			e_setMaterial(name);
+	}
 
 	// exporting functions
 	void e_checkObjectAndFile()
@@ -370,7 +430,8 @@ namespace ml
 		if (!e_fileOpen)
 		{
 			//e_output.open("output.ofv");
-			e_output.open("assets/exported/output.obj");
+			e_output.open(exportFileName);
+			if (!e_output.is_open()) std::cout << "could not open file " << exportFileName << std::endl;
 			e_fileOpen = true;
 		}
 		if (!e_objectCreated)
@@ -379,7 +440,6 @@ namespace ml
 			e_objectCreated = true;
 		}
 	}
-
 	void e_vertex(float x, float y, float z)
 	{
 		e_checkObjectAndFile();
@@ -396,7 +456,6 @@ namespace ml
 		//vertexCounter++;
 		//return vertexCounter - 1;
 	}
-
 	void e_face(unsigned int* ids, int length)
 	{
 		//e_output << "f[";
@@ -546,7 +605,6 @@ namespace ml
 			}
 		}
 	}
-
 	void e_setMaterial(const std::string& name)
 	{
 		e_checkObjectAndFile();

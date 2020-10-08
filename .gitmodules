@@ -7,3 +7,6 @@
 [submodule "vendor/imgui"]
 	path = vendor/imgui
 	url = https://github.com/TheCherno/imgui.git
+[submodule "vendor/baseGL"]
+	path = vendor/baseGL
+	url = https://github.com/santaclose/baseGL

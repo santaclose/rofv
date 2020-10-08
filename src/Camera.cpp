@@ -1,59 +1,87 @@
 #include "Camera.h"
 
-#define PHI_MAX 1.5708
-#define PHI_MIN -1.5708
+Camera* Camera::boundCamera = nullptr;
 
-#define MIN_DISTANCE -100.0
-#define MAX_DISTANCE -1.5
+void Camera::ComputeMatrices()
+{
+	if (m_specs.perspective)
+	{
+		m_projectionMatrix = glm::perspective(
+			glm::radians(m_specs.fieldOfView),
+			m_specs.aspectRatio,
+			m_specs.nearClippingPlane,
+			m_specs.farClippingPlane);
+	}
+	else
+	{
+		if (m_specs.aspectRatio >= 1.0)
+			m_projectionMatrix = glm::ortho(
+				-m_specs.aspectRatio / 2.0f * m_specs.orthographicScale,
+				m_specs.aspectRatio / 2.0f * m_specs.orthographicScale,
+				-0.5f * m_specs.orthographicScale,
+				0.5f * m_specs.orthographicScale,
+				m_specs.nearClippingPlane,
+				m_specs.farClippingPlane);
+		else
+			m_projectionMatrix = glm::ortho(
+				-0.5f * m_specs.orthographicScale,
+				0.5f * m_specs.orthographicScale,
+				-1.0f / m_specs.aspectRatio / 2.0f * m_specs.orthographicScale,
+				1.0f / m_specs.aspectRatio / 2.0f * m_specs.orthographicScale,
+				m_specs.nearClippingPlane,
+				m_specs.farClippingPlane);
+	}
 
-#define MOUSE_SCROLL_SENSITIVITY 0.6
-#define MOUSE_SENSITIVITY 0.01
+	m_viewMatrix = (glm::mat4) glm::conjugate(m_rotation);
+	m_viewMatrix = glm::translate(m_viewMatrix, -m_position);
+
+	m_cameraMatrix = m_projectionMatrix * m_viewMatrix;
+}
+
+const glm::mat4& Camera::GetMatrix()
+{
+	return m_cameraMatrix;
+}
+
+const glm::mat4& Camera::GetViewMatrix()
+{
+	return m_viewMatrix;
+}
+
+const glm::mat4& Camera::GetProjectionMatrix()
+{
+	return m_projectionMatrix;
+}
+const glm::vec3& Camera::GetPosition()
+{
+	return m_position;
+}
 
 Camera::Camera()
 {
-	orbiting = false;
-	theta = 0.0;
-	phi = 0.523599; // 30degs
-	distance = -6.5f;
-	fov = 1.0472; // 60degs
-	//scaleFactor = 1.0;
+	if (boundCamera == nullptr)
+		boundCamera = this;
+
+	m_specs = CameraSpecs();
+	m_position = glm::vec3(0.0, 0.0, 0.0);
+	m_rotation = glm::fquat(1.0, 0.0, 0.0, 0.0);
+
+	m_cameraMatrix = m_viewMatrix = m_projectionMatrix = glm::mat4();
 }
 
-void Camera::StartOrbiting()
+Camera::Camera(const CameraSpecs& specs)
 {
-	orbiting = true;
-}
-void Camera::StopOrbiting()
-{
-	orbiting = false;
-}
+	if (boundCamera == nullptr)
+		boundCamera = this;
 
-void Camera::OnMouseMoved(double dx, double dy)
-{
-	if (orbiting)
-	{
-		theta += dx * MOUSE_SENSITIVITY;
-		phi += dy * MOUSE_SENSITIVITY;
-		if (phi > PHI_MAX) phi = PHI_MAX;
-		else if (phi < PHI_MIN) phi = PHI_MIN;
-		//printf("theta: %lf\nphi: %lf\n", theta, phi);
-	}
+	m_specs = specs;
+	m_position = glm::vec3(0.0, 0.0, 0.0);
+	m_rotation = glm::fquat(1.0, 0.0, 0.0, 0.0);
+
+	m_cameraMatrix = m_viewMatrix = m_projectionMatrix = glm::mat4();
 }
 
-void Camera::OnMouseScroll(double value)
+void Camera::Bind()
 {
-	distance += value * MOUSE_SCROLL_SENSITIVITY;
-	if (distance < MIN_DISTANCE) distance = MIN_DISTANCE;
-	else if (distance > MAX_DISTANCE) distance = MAX_DISTANCE;
-	//printf("distance: %lf\n", distance);
-}
-
-void Camera::UpdateTransformationMatrices(double aspectRatio)
-{
-	projectionMatrix = glm::perspective(fov, aspectRatio, 0.1, 1000.0);
-
-	viewMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, distance));
-
-	modelMatrix = glm::rotate(glm::mat4(1.0f), phi, glm::vec3(1.0f, 0.0f, 0.0f));
-	modelMatrix = glm::rotate(modelMatrix, theta, glm::vec3(0.0f, 1.0f, 0.0f));
+	boundCamera = this;
 }

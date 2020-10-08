@@ -1,7 +1,7 @@
 #include "Shader.h"
 
 #include <iostream>
-#include <sstream>
+#include <string>
 #include <fstream>
 
 unsigned int Shader::CompileShader(unsigned int type, const std::string& source)
@@ -27,72 +27,57 @@ unsigned int Shader::CompileShader(unsigned int type, const std::string& source)
 	return id;
 }
 
-Shader::Shader() : id(-1) {}
-Shader::Shader(const std::string& filePath)
+Shader::Shader() : m_gl_id(-1) {}
+
+void Shader::CreateFromFiles(const std::string& vertexShaderPath, const std::string& fragmentShaderPath)
 {
-	std::ifstream inputStream(filePath);
+	std::ifstream ifs(vertexShaderPath);
+	std::ifstream ifs2(fragmentShaderPath);
 
-	if (inputStream.fail())
-	{
-		std::cout << "file " << filePath << " not found\n";
-	}
+	if (ifs.fail())
+		std::cout << "Could not read vertex shader file: " << vertexShaderPath << std::endl;
+	if (ifs2.fail())
+		std::cout << "Could not read fragment shader file: " << fragmentShaderPath << std::endl;
 
-	enum class ShaderType
-	{
-		VERTEX = 0, FRAGMENT = 1
-	};
+	std::string vertexShaderSource((std::istreambuf_iterator<char>(ifs)),
+		(std::istreambuf_iterator<char>()));
+	std::string fragmentShaderSource((std::istreambuf_iterator<char>(ifs2)),
+		(std::istreambuf_iterator<char>()));
 
-	ShaderType currentShaderType = ShaderType::VERTEX;
-	std::stringstream shaderSources[2];
+	m_gl_id = glCreateProgram();
+	unsigned int vs = CompileShader(GL_VERTEX_SHADER, vertexShaderSource);
+	unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
 
-	std::string line;
-	while (getline(inputStream, line))
-	{
-		if (int r = line.find("#shader") != std::string::npos)
-		{
-			currentShaderType = line[r + 7] == 'v' ? ShaderType::VERTEX : ShaderType::FRAGMENT;
-		}
-		else
-		{
-			shaderSources[(int)currentShaderType] << line << '\n';
-		}
-	}
-
-	id = glCreateProgram();
-	unsigned int vs = CompileShader(GL_VERTEX_SHADER, shaderSources[0].str());
-	unsigned int fs = CompileShader(GL_FRAGMENT_SHADER, shaderSources[1].str());
-
-	glAttachShader(id, vs);
-	glAttachShader(id, fs);
-	glLinkProgram(id);
-	glValidateProgram(id);
+	glAttachShader(m_gl_id, vs);
+	glAttachShader(m_gl_id, fs);
+	glLinkProgram(m_gl_id);
+	glValidateProgram(m_gl_id);
 
 	glDeleteShader(vs);
 	glDeleteShader(fs);
 }
 
-
 Shader::~Shader()
 {
-	glDeleteProgram(id);
+	glDeleteProgram(m_gl_id);
 }
 
 void Shader::Bind() const
 {
-	glUseProgram(id);
-	//std::cout << "Shader " << id << " bound\n";
+	glUseProgram(m_gl_id);
+	//std::cout << "Shader " << m_gl_id << " bound\n";
 }
 
 int Shader::GetUniformLocation(const std::string& name)
 {
-	if (uniformLocationCache.find(name) != uniformLocationCache.end())
-		return uniformLocationCache[name];
+	if (m_uniformLocationCache.find(name) != m_uniformLocationCache.end())
+		return m_uniformLocationCache[name];
 
-	int location = glGetUniformLocation(id, name.c_str());
+	int location = glGetUniformLocation(m_gl_id, name.c_str());
 	if (location == -1)
 		std::cout << "Could not get uniform location for " << name << std::endl;
 
-	uniformLocationCache[name] = location;
+	m_uniformLocationCache[name] = location;
 	return location;
 }
 
@@ -103,6 +88,10 @@ void Shader::SetUniformMatrix4fv(const std::string& name, const float* pointer)
 void Shader::SetUniform3fv(const std::string& name, const float* pointer)
 {
 	glUniform3fv(GetUniformLocation(name), 1, pointer);
+}
+void Shader::SetUniform4fv(const std::string& name, const float* pointer)
+{
+	glUniform4fv(GetUniformLocation(name), 1, pointer);
 }
 void Shader::SetUniform1i(const std::string& name, const int value)
 {
