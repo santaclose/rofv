@@ -57,6 +57,12 @@ const glm::vec3& Camera::GetPosition()
 	return m_position;
 }
 
+void Camera::SetFieldOfView(float value)
+{
+	m_specs.fieldOfView = value;
+	ComputeMatrices();
+}
+
 Camera::Camera()
 {
 	if (boundCamera == nullptr)

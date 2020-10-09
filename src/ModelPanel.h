@@ -30,4 +30,5 @@ public:
 	void SetLightingEnabled(bool value);
 	unsigned int GetLastVertexCount();
 	void SaveModel(bool saveUvs);
+	void SetCameraFOV(float value);
 };

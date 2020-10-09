@@ -120,3 +120,8 @@ void ModelPanel::SaveModel(bool saveUvs)
 	m_modelGenerationPending = true;
 	std::cout << "exporting as obj\n";
 }
+
+void ModelPanel::SetCameraFOV(float value)
+{
+	m_camera->SetFieldOfView(value);
+}

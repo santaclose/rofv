@@ -7,11 +7,15 @@ class OptionsPanel : public Panel
 {
 private:
 	ModelPanel* m_modelPanel;
+
 	int m_currentMsaaCount = 8;
 	bool m_wireframeEnabled = false;
 	bool m_cullBackFace = false;
 	bool m_smoothEnabled = false;
 	bool m_renderTexture = false;
+
+	float m_cameraFOV = 90.0f;
+
 	bool m_saveUvsOption = false;
 
 public:

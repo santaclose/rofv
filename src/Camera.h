@@ -31,6 +31,8 @@ public:
 	const glm::mat4& GetProjectionMatrix();
 	const glm::vec3& GetPosition();
 
+	void SetFieldOfView(float value);
+
 	Camera();
 	Camera(const CameraSpecs& specs);
 	void Bind();
