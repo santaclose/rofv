@@ -7,8 +7,8 @@
 #include "modelTool/ml.h"
 
 #define SENSITIVITY 0.01f
-#define MAX_DISTANCE 7.0f
-#define MIN_DISTANCE 2.0f
+#define MAX_DISTANCE 50.0f
+#define MIN_DISTANCE 0.5f
 
 #define CAMERA_LIMIT 1.565
 
