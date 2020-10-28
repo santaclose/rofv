@@ -264,10 +264,9 @@ namespace ml
 		for (int i = 0; i < length; i++)
 		{
 			int n = (i + 1) % length;
-			int nn = (i + 2) % length;
 			winding +=
-				((vertices[ids[n]].pos - vertices[ids[i]].pos) *
-				(vertices[ids[nn]].pos - vertices[ids[i]].pos)) *
+				((vertices[ids[i]].pos - vertices[ids[0]].pos) *
+				(vertices[ids[n]].pos - vertices[ids[0]].pos)) *
 				(invert ? -1.0f : 1.0f);
 
 			points.push_back(ids[i]);
