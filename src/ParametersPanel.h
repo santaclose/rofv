@@ -1,7 +1,6 @@
 #pragma once
 #include <imgui.h>
 #include "Panel.h"
-#include "ModelPanel.h"
 
 class ParametersPanel : public Panel
 {

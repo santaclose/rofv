@@ -31,4 +31,5 @@ public:
 	unsigned int GetLastVertexCount();
 	void SaveModel(bool saveUvs);
 	void SetCameraFOV(float value);
+	void CenterCamera();
 };

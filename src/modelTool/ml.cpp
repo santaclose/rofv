@@ -24,7 +24,7 @@ namespace ml
 	bool exporting = false;
 	unsigned int lastDrawVertexCount = 0;
 
-	std::string exportFileName = "assets/exported/output.obj";
+	std::string exportFileName = "assets/output/output.obj";
 	bool e_fileOpen = false;
 	bool e_objectCreated = false;
 	std::ofstream e_output;
@@ -114,15 +114,21 @@ namespace ml
 		
 		if (smoothMode)
 		{
-			glBindBuffer(GL_ARRAY_BUFFER, smoothVBO);
-			glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(ml::vertexS), &vertices[0], GL_DYNAMIC_DRAW);
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, smoothIBO);
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexList.size() * sizeof(unsigned int), &indexList[0], GL_DYNAMIC_DRAW);
+			if (vertices.size() > 0 && indexList.size() > 0)
+			{
+				glBindBuffer(GL_ARRAY_BUFFER, smoothVBO);
+				glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(ml::vertexS), &vertices[0], GL_DYNAMIC_DRAW);
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, smoothIBO);
+				glBufferData(GL_ELEMENT_ARRAY_BUFFER, indexList.size() * sizeof(unsigned int), &indexList[0], GL_DYNAMIC_DRAW);
+			}
 		}
 		else
 		{
-			glBindBuffer(GL_ARRAY_BUFFER, facetedVBO);
-			glBufferData(GL_ARRAY_BUFFER, facetedDrawing.size() * sizeof(ml::vertexS), &facetedDrawing[0], GL_DYNAMIC_DRAW);
+			if (facetedDrawing.size() > 0)
+			{
+				glBindBuffer(GL_ARRAY_BUFFER, facetedVBO);
+				glBufferData(GL_ARRAY_BUFFER, facetedDrawing.size() * sizeof(ml::vertexS), &facetedDrawing[0], GL_DYNAMIC_DRAW);
+			}
 		}
 	}
 	void DrawModel()

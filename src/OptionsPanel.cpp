@@ -46,6 +46,9 @@ void OptionsPanel::ImGuiCall(const ImGuiIO& io)
 	{
 		ImGui::SliderFloat("Field of view", &m_cameraFOV, 20.0f, 100.0f);
 		m_modelPanel->SetCameraFOV(m_cameraFOV);
+
+		if (ImGui::Button("Center camera"))
+			m_modelPanel->CenterCamera();
 	}
 
 	if (ImGui::CollapsingHeader("Info", ImGuiTreeNodeFlags_DefaultOpen))
@@ -55,14 +58,8 @@ void OptionsPanel::ImGuiCall(const ImGuiIO& io)
 		ImGui::Text(ss.str().c_str());
 	}
 
-	if (ImGui::CollapsingHeader("Save", ImGuiTreeNodeFlags_DefaultOpen))
-	{
-
-		//ImGui::Checkbox("Save UVs", &m_saveUvsOption);
-
-		if (ImGui::Button("Save"))
-			m_modelPanel->SaveModel(m_saveUvsOption);
-	}
+	if (ImGui::Button("Save"))
+		m_modelPanel->SaveModel(m_saveUvsOption);
 
 	ImGui::End();
 }

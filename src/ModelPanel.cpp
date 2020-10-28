@@ -6,7 +6,8 @@
 #include "Model.h"
 #include "modelTool/ml.h"
 
-#define SENSITIVITY 0.01f
+#define PAN_SENSITIVITY 0.01f
+#define ORBIT_SENSITIVITY 0.01f
 #define MAX_DISTANCE 50.0f
 #define MIN_DISTANCE 0.5f
 
@@ -14,8 +15,8 @@
 
 void ModelPanel::UpdateCamera()
 {
-	m_camera->SetPosition(m_gimbal.Forward() * m_distance);
-	m_camera->LookAt(glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+	m_camera->SetPosition(m_gimbal.GetPosition() + m_gimbal.Forward() * m_distance);
+	m_camera->LookAt(m_gimbal.GetPosition(), glm::vec3(0.0, 1.0, 0.0));
 }
 
 ModelPanel::ModelPanel(const std::string& name, const glm::vec3& clearColor, uint32_t msaaCount) : DisplayPanelMSAA(name, clearColor, 8, true)
@@ -24,6 +25,7 @@ ModelPanel::ModelPanel(const std::string& name, const glm::vec3& clearColor, uin
 	ss.perspective = true;
 	m_camera = new Camera(ss);
 	m_distance = 3.19f;
+	m_gimbal.SetPosition({ 0.0, 0.0, 0.0 });
 	m_gimbal.SetRotation(glm::fquat(m_gimbalRot));
 	UpdateCamera();
 
@@ -54,16 +56,27 @@ void ModelPanel::HandleInput(const ImGuiIO& io, const glm::vec2& relativeMousePo
 	if (io.MouseDown[2])
 	{
 		inputHandlingRetained = this;
-		m_gimbalRot.y -= io.MouseDelta.x * SENSITIVITY;
-		m_gimbalRot.x += io.MouseDelta.y * SENSITIVITY;
+		if (io.KeyShift)
+		{
+			m_gimbal.SetPosition(
+				m_gimbal.GetPosition() +
+				m_gimbal.Right() * io.MouseDelta.x * PAN_SENSITIVITY * glm::sqrt(m_distance) +
+				m_gimbal.Up()    * io.MouseDelta.y * PAN_SENSITIVITY * glm::sqrt(m_distance)
+			);
+		}
+		else
+		{
+			m_gimbalRot.y -= io.MouseDelta.x * ORBIT_SENSITIVITY;
+			m_gimbalRot.x += io.MouseDelta.y * ORBIT_SENSITIVITY;
 
-		if (m_gimbalRot.x > CAMERA_LIMIT)
-			m_gimbalRot.x = CAMERA_LIMIT;
-		else if (m_gimbalRot.x < -CAMERA_LIMIT)
-			m_gimbalRot.x = -CAMERA_LIMIT;
+			if (m_gimbalRot.x > CAMERA_LIMIT)
+				m_gimbalRot.x = CAMERA_LIMIT;
+			else if (m_gimbalRot.x < -CAMERA_LIMIT)
+				m_gimbalRot.x = -CAMERA_LIMIT;
 
-		m_gimbal.SetRotation(glm::fquat(m_gimbalRot));
-		m_lightDir = -m_gimbal.Forward();
+			m_gimbal.SetRotation(glm::fquat(m_gimbalRot));
+			m_lightDir = -m_gimbal.Forward();
+		}
 	}
 	else
 	{
@@ -124,4 +137,10 @@ void ModelPanel::SaveModel(bool saveUvs)
 void ModelPanel::SetCameraFOV(float value)
 {
 	m_camera->SetFieldOfView(value);
+}
+
+void ModelPanel::CenterCamera()
+{
+	m_gimbal.SetPosition({ 0.0, 0.0, 0.0 });
+	UpdateCamera();
 }
