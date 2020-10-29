@@ -8,7 +8,7 @@
 
 #define PAN_SENSITIVITY 0.01f
 #define ORBIT_SENSITIVITY 0.01f
-#define MAX_DISTANCE 50.0f
+#define MAX_DISTANCE 80.0f
 #define MIN_DISTANCE 0.5f
 
 #define CAMERA_LIMIT 1.565
@@ -143,4 +143,9 @@ void ModelPanel::CenterCamera()
 {
 	m_gimbal.SetPosition({ 0.0, 0.0, 0.0 });
 	UpdateCamera();
+}
+
+glm::vec3* ModelPanel::GetCameraTargetRef()
+{
+	return (glm::vec3*)&m_gimbal;
 }

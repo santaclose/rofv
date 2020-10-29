@@ -6,6 +6,7 @@ OptionsPanel::OptionsPanel(const std::string& name, ModelPanel* modelPanel, int 
 {
 	m_modelPanel = modelPanel;
 	m_currentMsaaCount = msaaCount;
+	m_cameraTargetPosRef = modelPanel->GetCameraTargetRef();
 }
 
 void OptionsPanel::ImGuiCall(const ImGuiIO& io)
@@ -16,10 +17,8 @@ void OptionsPanel::ImGuiCall(const ImGuiIO& io)
 	{
 		int lastMsaaCount = m_currentMsaaCount;
 		ImGui::SliderInt("MSAA Count", &m_currentMsaaCount, 2, 8);
-		if (
-			(m_currentMsaaCount == 2 || m_currentMsaaCount == 4 || m_currentMsaaCount == 8) &&
-			m_currentMsaaCount != lastMsaaCount
-			)
+		if ((m_currentMsaaCount == 2 || m_currentMsaaCount == 4 || m_currentMsaaCount == 8) &&
+			m_currentMsaaCount != lastMsaaCount)
 		{
 			m_modelPanel->SetSamples((uint32_t)m_currentMsaaCount);
 		}
@@ -46,6 +45,9 @@ void OptionsPanel::ImGuiCall(const ImGuiIO& io)
 	{
 		ImGui::SliderFloat("Field of view", &m_cameraFOV, 20.0f, 100.0f);
 		m_modelPanel->SetCameraFOV(m_cameraFOV);
+
+		if (ImGui::DragFloat3("Camera target", (float*)m_cameraTargetPosRef, 0.1f))
+			m_modelPanel->UpdateCamera();
 
 		if (ImGui::Button("Center camera"))
 			m_modelPanel->CenterCamera();

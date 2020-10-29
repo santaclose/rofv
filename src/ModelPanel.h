@@ -16,8 +16,6 @@ class ModelPanel : public DisplayPanelMSAA
 	bool m_noLighting = false;
 	bool m_useTexture = false;
 
-    void UpdateCamera();
-
 public:
 	ModelPanel(const std::string& name, const glm::vec3& clearColor, uint32_t msaaCount);
 	~ModelPanel();
@@ -25,6 +23,7 @@ public:
 	void HandleInput(const ImGuiIO& io, const glm::vec2& relativeMousePos);
 	void Draw();
 
+    void UpdateCamera();
 	bool* GetModelGenerationPendingBool();
 	void SetSmoothEnabled(bool value);
 	void SetLightingEnabled(bool value);
@@ -32,4 +31,5 @@ public:
 	void SaveModel(bool saveUvs);
 	void SetCameraFOV(float value);
 	void CenterCamera();
+	glm::vec3* GetCameraTargetRef();
 };

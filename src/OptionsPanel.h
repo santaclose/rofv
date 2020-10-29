@@ -14,7 +14,8 @@ private:
 	bool m_smoothEnabled = false;
 	bool m_renderTexture = false;
 
-	float m_cameraFOV = 90.0f;
+	float m_cameraFOV = 70.0;
+	glm::vec3* m_cameraTargetPosRef = nullptr;
 
 	bool m_saveUvsOption = false;
 
