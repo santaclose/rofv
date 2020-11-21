@@ -1,5 +1,6 @@
 #include "vl.h"
 #include <algorithm>
+#include <cmath>
 
 vec::vec()
 {
